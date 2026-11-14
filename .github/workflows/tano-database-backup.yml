@@ -1,0 +1,45 @@
+name: TANO encrypted daily database backup
+
+on:
+  schedule:
+    # 03:17 Asia/Taipei (19:17 UTC the previous day)
+    - cron: '17 19 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tano-production-database-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: Encrypt and retain Supabase backup
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SUPABASE_DB_URL: ${{ secrets.TANO_BACKUP_DB_URL }}
+      TANO_BACKUP_PASSPHRASE: ${{ secrets.TANO_BACKUP_PASSPHRASE }}
+    steps:
+      - name: Checkout backup scripts
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Export and encrypt the database
+        shell: bash
+        run: bash scripts/backup-supabase.sh
+      - name: Upload encrypted backup only
+        uses: actions/upload-artifact@v4
+        with:
+          name: tano-db-encrypted-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/tano-secure-backup/*.gpg
+            ${{ runner.temp }}/tano-secure-backup/*.sha256
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
