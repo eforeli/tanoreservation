@@ -8,12 +8,12 @@ const strings={
  zh:{
   bookingConfirmed:'訂位成功',bookingCode:'訂位編號',guest:'姓名',persons:'人數',date:'日期',time:'時間',personUnit:' 位',
   copyTitle:'複製訂位資料',copied:'訂位資訊已複製',copyFailed:'複製失敗，請手動截圖保存',
-  receiptNotice:'複製訂位資料，回傳LINE官方',changeNotice:'＊若需取消或修改訂位資訊，請提早Line通知我們。',
+  receiptNotice:'煩請複製訂位資料，回傳至官方LINE，以利餐廳核對！',changeNotice:'＊若需取消或修改訂位資訊，請提早Line通知我們。',
   heading:'預約 TANO 的一席',tagline:'炭火慢慢逼出肉香，也定下 TANO 的味道。',
   diningDate:'用餐日期',party:'用餐人數',chooseTime:'選擇入席時間',loading:'查詢可訂時段中…',empty:'當日目前沒有可訂時段',
   contactName:'聯絡姓名',phone:'手機號碼',namePlaceholder:'請填寫姓名',phonePlaceholder:'09xxxxxxxx',
   notes:'備註（選填）',notesPlaceholder:'例如：過敏資訊',requiredName:'請填寫聯絡姓名',requiredPhone:'請填寫手機號碼',phoneFormat:'10 碼手機號碼',
-  terms:'尖峰時段(若客滿)用餐時間為 90 分鐘，沒客滿想坐多久就坐多久。\n送出即同意訂位保留與取消規則依餐廳為主。',
+  terms:'尖峰時段(若客滿)用餐時間為 90 分鐘，離峰時段則不限時。\n送出即同意訂位保留與取消規則依餐廳為主。',
   submit:'確認訂位',submitting:'送出中…',largeParty:'6 人以上請透過 TANO LINE 官方帳號聯絡餐廳。',
   connectionFailed:'連線失敗，請重新整理',notComplete:'訂位未完成',networkError:'網路錯誤，請確認訂位是否成立再重試',
  },
@@ -62,11 +62,11 @@ export default function Reserve(){
     <p>{t.date}：{dateText}</p>
     <p>{t.time}：{timeText}</p>
     <p>{t.phone}：{receipt.guest_phone}</p>
+    <p className="receipt-change-notice">{t.changeNotice}</p>
    </div>
    {copied&&<div role="status" className="copy-popup">{t.copied}</div>}
    {error&&<p role="alert" className="error">{error}</p>}
-   <p className="receipt-notice receipt-highlight">{t.receiptNotice}</p>
-   <p className="receipt-change-notice">{t.changeNotice}</p>
+   <p className="receipt-notice receipt-highlight">煩請<strong>複製</strong>訂位資料，<strong>回傳至官方LINE</strong>，以利餐廳核對！</p>
    <div className="receipt-copy-container"><button type="button" className="primary receipt-copy-button" onClick={async()=>{try{await navigator.clipboard.writeText(copyText);setCopied(true);}catch{setError(t.copyFailed);}}}>{t.copyTitle}</button></div>
   </section>;
  }
