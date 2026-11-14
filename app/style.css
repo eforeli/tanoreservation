@@ -205,3 +205,19 @@ input[type="date"],input[type="time"]{width:100%;min-width:0;max-width:100%;-web
  .booking-detail-table td[data-label="操作"] .actions{display:flex;justify-content:flex-end;align-items:center;gap:8px;margin:0}
  .booking-detail-table td[data-label="操作"] .actions button{min-height:38px;padding:8px 12px}
 }
+
+
+/* Customer self-service booking pages */
+.booking-entry{text-align:center;padding-top:55px;padding-bottom:55px}
+.booking-entry .muted{margin-bottom:24px}
+.booking-link-primary{display:block;text-align:center;background:var(--accent);border:1px solid var(--accent);color:#fff;padding:14px 18px;border-radius:10px;font-weight:700;margin:20px 0}
+.booking-link-primary:hover{background:#6e3a23;color:#fff}
+.booking-text-link{text-decoration:underline;text-underline-offset:4px;color:var(--accent);font-weight:600}
+.booking-manage-actions{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.booking-manage-actions .booking-link-primary{margin:0;flex:1 1 160px}
+.booking-manage-actions button{flex:1 1 160px}
+.booking-danger{background:#a9312c;border-color:#a9312c;color:#fff}
+.booking-modal-backdrop{position:fixed;inset:0;background:#0009;z-index:1100;display:grid;place-items:center;padding:16px}
+.booking-modal{background:var(--paper);border-radius:14px;padding:24px;max-width:460px;width:100%;box-shadow:0 12px 40px #0004}
+.booking-modal h2{font-size:21px}
+@media(max-width:650px){.booking-entry{padding-top:35px;padding-bottom:35px}.booking-manage-actions{flex-direction:column;align-items:stretch}.booking-manage-actions button,.booking-manage-actions .booking-link-primary{flex:auto;width:100%}}
