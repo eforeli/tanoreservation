@@ -10,7 +10,7 @@ const strings={
   copyTitle:'複製訂位資料',copied:'訂位資訊已複製',copyFailed:'複製失敗，請手動截圖保存',
   receiptNotice:'請複製訂位資料，貼到官方LINE，餐廳將核對確認。',changeNotice:'＊若需取消或修改訂位資訊，請提早Line通知我們。',
   heading:'預約 TANO 的一席',tagline:'炭火慢慢逼出肉香，也定下 TANO 的味道。',
-  diningDate:'用餐日期',party:'用餐人數',chooseTime:'選擇入席時間',loading:'查詢可訂時段中…',empty:'當日目前沒有可訂時段',
+  diningDate:'用餐日期',party:'用餐人數',chooseTime:'選擇入席時間',loading:'查詢可訂時段中…',empty:'當日目前沒有可訂時段',closed:'本日公休',full:'本日訂位額滿',unavailable:'目前沒有可開放的訂位時段',
   contactName:'聯絡姓名',phone:'手機號碼',namePlaceholder:'請填寫姓名',phonePlaceholder:'09xxxxxxxx',
   notes:'備註（選填）',notesPlaceholder:'例如：過敏資訊',requiredName:'請填寫聯絡姓名',requiredPhone:'請填寫手機號碼',phoneFormat:'10 碼手機號碼',
   terms:'尖峰時段(若客滿)用餐時間為 90 分鐘，離峰時段則不限時。\n送出即同意訂位保留與取消規則依餐廳為主。',
@@ -22,7 +22,7 @@ const strings={
   copyTitle:'Copy all reservation details',copied:'Reservation details copied',copyFailed:'Unable to copy. Please save a screenshot instead.',
   receiptNotice:'Copy your reservation details and send them to our official LINE account',changeNotice:'*To cancel or change your reservation, please notify us early via LINE.',
   heading:'Reserve a Table at TANO',tagline:'Slowly grilled over charcoal, crafted with the unmistakable taste of TANO.',
-  diningDate:'Dining Date',party:'Party Size',chooseTime:'Select an Arrival Time',loading:'Checking available times…',empty:'No available times for this date',
+  diningDate:'Dining Date',party:'Party Size',chooseTime:'Select an Arrival Time',loading:'Checking available times…',empty:'No available times for this date',closed:'Closed today',full:'Fully booked today',unavailable:'No booking times available',
   contactName:'Contact Name',phone:'Mobile Number',namePlaceholder:'Enter your name',phonePlaceholder:'09xxxxxxxx',
   notes:'Notes (optional)',notesPlaceholder:'e.g., food allergies',requiredName:'Please enter your name',requiredPhone:'Please enter your mobile number',phoneFormat:'10-digit mobile number',
   terms:'During peak hours (when fully booked), dining time is limited to 90 minutes. Otherwise, stay as long as you like.\nBy submitting, you agree that the restaurant’s reservation holding and cancellation policies apply.',
@@ -33,11 +33,11 @@ const strings={
 
 export default function Reserve(){
  const {language}=useLanguage();const t=strings[language];
- const [date,setDate]=useState(taiwanToday),[party,setParty]=useState(2),[slots,setSlots]=useState<string[]>([]),[time,setTime]=useState(''),[name,setName]=useState(''),[phone,setPhone]=useState(''),[notes,setNotes]=useState('');
+ const [date,setDate]=useState(taiwanToday),[party,setParty]=useState(2),[slots,setSlots]=useState<string[]>([]),[time,setTime]=useState(''),[dayState,setDayState]=useState<'closed'|'full'|'unavailable'|'available'>('unavailable'),[name,setName]=useState(''),[phone,setPhone]=useState(''),[notes,setNotes]=useState('');
  const [busy,setBusy]=useState(false),[loading,setLoading]=useState(false),[error,setError]=useState(''),[receipt,setReceipt]=useState<Receipt|null>(null);
  const [key]=useState(()=>crypto.randomUUID()),[copied,setCopied]=useState(false);
  useEffect(()=>{let live=true;setTime('');setError('');setLoading(true);fetch(`/api/availability?date=${date}&partySize=${party}`,{cache:'no-store'})
-  .then(r=>r.json()).then(x=>{if(live){setSlots(x.slots||[]);if(x.error)setError(language==='zh'?x.error:t.notComplete);}})
+  .then(r=>r.json()).then(x=>{if(live){setSlots(x.slots||[]);setDayState(x.state||'unavailable');if(x.error)setError(language==='zh'?x.error:t.notComplete);}})
   .catch(()=>{if(live)setError(t.connectionFailed);}).finally(()=>{if(live)setLoading(false);});return()=>{live=false;};},[date,party,language,t.connectionFailed,t.notComplete]);
  useEffect(()=>{if(!copied)return;const timer=setTimeout(()=>setCopied(false),2000);return()=>clearTimeout(timer);},[copied]);
  async function submit(e:React.FormEvent){e.preventDefault();if(!time||busy)return;
@@ -80,7 +80,7 @@ export default function Reserve(){
     <label>{t.party}<select value={party} onChange={e=>setParty(Number(e.target.value))}>{[1,2,3,4,5].map(n=><option key={n} value={n}>{n}{t.personUnit}</option>)}</select></label>
    </div>
    <label>{t.chooseTime}</label>
-   <div className="slots">{loading?t.loading:slots.length?slots.map(s=><button type="button" className={s===time?'selected':''} key={s} onClick={()=>setTime(s)}>{s}</button>):t.empty}</div>
+   <div className="slots">{loading?t.loading:slots.length?slots.map(s=><button type="button" className={s===time?'selected':''} key={s} onClick={()=>setTime(s)}>{s}</button>):dayState==='closed'?t.closed:dayState==='full'?t.full:t.unavailable}</div>
    <div className="two">
     <label>{t.contactName} <span className="required-star" aria-hidden="true">*</span><input value={name} required maxLength={80} autoComplete="name" onChange={e=>setName(e.target.value)} placeholder={t.namePlaceholder}/></label>
     <label>{t.phone} <span className="required-star" aria-hidden="true">*</span>
