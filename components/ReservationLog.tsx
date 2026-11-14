@@ -53,7 +53,7 @@ export default function ReservationLog({request,language}:{request:(path:string,
    </select></label>
    <div className="reservation-log-filter-actions"><button type="submit" className="primary">{t("篩選")}</button><button type="button" onClick={reset}>{t("清除")}</button></div>
   </form>
-  <div className="reservation-log-summary"><span>{t("共 ")}{total} 筆紀錄</span><button type="button" disabled={busy} onClick={()=>setReload(x=>x+1)}>{t("重新整理")}</button></div>
+  <div className="reservation-log-summary"><span>{language==='es'?`Total: ${total} registros`:`共 ${total} 筆紀錄`}</span></div>
   {error&&<p className="error" role="alert">{error}</p>}
   <div className="tablewrap">
    <table className="responsive-table reservation-log-table">
@@ -75,7 +75,7 @@ export default function ReservationLog({request,language}:{request:(path:string,
   {busy&&<p className="muted small" role="status">{t("查詢中…")}</p>}
   <div className="reservation-log-pages">
    <button type="button" disabled={busy||page<=1} onClick={()=>setPage(n=>n-1)}>{t("上一頁")}</button>
-   <span>{t("第 ")}{page} / {totalPages} 頁</span>
+   <span>{language==='es'?`Página ${page} de ${totalPages}`:`第 ${page} / ${totalPages} 頁`}</span>
    <button type="button" disabled={busy||page>=totalPages} onClick={()=>setPage(n=>n+1)}>{t("下一頁")}</button>
   </div>
  </section>;
