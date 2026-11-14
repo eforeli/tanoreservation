@@ -104,3 +104,38 @@ input[type="date"],input[type="time"]{width:100%;min-width:0;max-width:100%;-web
  .block-editor-actions{display:grid;grid-template-columns:1fr 1fr}
  .block-editor-actions button{min-width:0}
 }
+
+/* V1.5 staff operations: centered feedback and independently browsable blocks */
+.toast{position:fixed;top:50%;left:50%;right:auto;bottom:auto;transform:translate(-50%,-50%);width:max-content;max-width:calc(100vw - 32px);text-align:center;z-index:2000;padding:16px 23px;box-shadow:0 16px 50px #0004}
+.block-list-heading h2{margin:0}
+.block-list-heading button{white-space:nowrap}
+.settings-subtabs{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 18px}
+.settings-subtabs button{padding:11px 18px;min-height:44px}
+.settings-subtabs button.active{background:#342a25;color:#fff;border-color:#342a25}
+.weekly-hours-list{display:grid;gap:14px}
+.weekly-day{border:1px solid var(--border);border-radius:12px;background:#fff;padding:18px;margin:0}
+.weekly-day-header{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:8px}
+.weekly-day-header h3{margin:0;font-size:18px}
+.weekly-day-state{display:flex;align-items:center;gap:10px;white-space:nowrap}
+.weekly-day-state select{min-width:110px;margin:0}
+.weekly-period{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;align-items:end;gap:12px}
+.weekly-period label{min-width:0}
+.weekly-period input{margin:7px 0 12px}
+.weekly-period button{margin-bottom:12px;min-height:44px}
+.weekly-add{margin-top:2px}
+.weekly-save{display:flex;justify-content:flex-end;margin-top:20px}
+.weekly-save button{min-height:44px}
+@media(max-width:650px){
+ .toast{top:50%;left:50%;right:auto;max-width:calc(100vw - 24px);font-size:14px}
+ .block-list-heading{align-items:center!important;flex-direction:row;flex-wrap:wrap}
+ .block-list-heading h2{font-size:22px}
+ .block-list-heading button{min-height:44px}
+ .settings-subtabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+ .settings-subtabs button{padding:10px 8px;font-size:14px}
+ .weekly-day{padding:14px 12px}
+ .weekly-day-header{gap:8px}
+ .weekly-day-state select{min-width:95px}
+ .weekly-period{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
+ .weekly-period button{grid-column:1/-1;justify-self:end;margin:-4px 0 12px}
+ .weekly-save button{width:100%}
+}
