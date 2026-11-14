@@ -58,7 +58,7 @@ export default function ManageReservation(){
    </div>}
   </>:<form onSubmit={verify} autoComplete="off">
    <p className="muted">請輸入訂位成功時取得的訂單編號，以及訂位時填寫的手機號碼。</p>
-   <label>訂單編號<input value={code} required maxLength={32} autoComplete="off" onChange={e=>setCode(e.target.value.toUpperCase())} placeholder="請輸入訂位編號"/></label>
+   <label>訂單編號<input value={code} required minLength={6} maxLength={6} pattern="[A-Za-z0-9]{6}" autoCapitalize="characters" autoComplete="off" onChange={e=>setCode(e.target.value.replace(/[^a-zA-Z0-9]/g,'').toUpperCase().slice(0,6))} placeholder="請輸入6位數訂單編號"/></label>
    <label>手機號碼<input type="tel" inputMode="numeric" value={phone} required pattern="09[0-9]{8}" maxLength={10} autoComplete="off" onChange={e=>setPhone(e.target.value.replace(/\D/g,'').slice(0,10))} placeholder="09xxxxxxxx"/></label>
    <button className="primary full" disabled={busy||loading||error.startsWith('無法重設查詢狀態')}>{busy?'查詢中…':'查詢訂位'}</button>
   </form>}
