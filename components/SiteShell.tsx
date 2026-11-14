@@ -18,7 +18,7 @@ export default function SiteShell({children}:{children:React.ReactNode}){
    <nav aria-label="網站選單" className="site-nav">
     <div className="site-menu" ref={menuRef}>
      <button className="site-menu-toggle" type="button" aria-label="開啟網站選單" aria-expanded={menuOpen} aria-controls="site-menu-items" onClick={()=>setMenuOpen(v=>!v)}>
-      <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      <svg aria-hidden="true" width="16" height="12" viewBox="0 0 16 12" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M5 6h6"/></svg>
      </button>
      {menuOpen&&<div id="site-menu-items" className="site-menu-items" role="menu">
       <a role="menuitem" href="/reserve" onClick={()=>setMenuOpen(false)}>線上訂位</a>
