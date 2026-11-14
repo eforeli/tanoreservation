@@ -30,6 +30,28 @@ const weeklySchema=z.array(z.object({weekday:z.number().int().min(0).max(6),is_c
 export async function GET(req:NextRequest,{params}:Context){
  const user=await adminUser(req);if(!user)return jsonError('未授權',401);
  const p=(await params).path;const s=db();
+ if(p[0]==='reservation-log'&&p.length===1){
+  const q=req.nextUrl.searchParams;
+  const page=Number(q.get('page')||1);
+  const dateFrom=q.get('from')||'',dateTo=q.get('to')||'';
+  const code=(q.get('code')||'').trim().toUpperCase();
+  const phone=(q.get('phone')||'').trim();
+  const actor=q.get('actor')||'all';
+  if(!Number.isInteger(page)||page<1||page>10000||code.length>32||phone.length>24||!['all','customer','admin'].includes(actor)
+   ||(dateFrom&&!day.safeParse(dateFrom).success)||(dateTo&&!day.safeParse(dateTo).success)
+   ||(dateFrom&&dateTo&&dateFrom>dateTo))return fail('篩選條件無效');
+  const {error:pruneError}=await rpc('prune_reservation_change_logs',{});
+  if(pruneError){console.error('reservation log prune',pruneError.code);return jsonError('訂位 Log 維護失敗',500);}
+  let query=s.from('reservation_change_log').select('*',{count:'exact'}).order('changed_at',{ascending:false}).order('id',{ascending:false});
+  if(dateFrom)query=query.gte('changed_at',new Date(dateFrom+'T00:00:00+08:00').toISOString());
+  if(dateTo)query=query.lt('changed_at',new Date(new Date(dateTo+'T00:00:00+08:00').getTime()+86400000).toISOString());
+  if(code)query=query.ilike('confirmation_code','%'+code.replace(/[%_,]/g,'')+'%');
+  if(phone)query=query.ilike('guest_phone','%'+phone.replace(/[%_,]/g,'')+'%');
+  if(actor!=='all')query=query.eq('actor',actor);
+  const {data,error,count}=await query.range((page-1)*10,page*10-1);
+  if(error){console.error('reservation log',error.code);return jsonError('無法查詢訂位 Log',500);}
+  return NextResponse.json({items:data||[],total:count||0,page,pageSize:10},{headers:{'Cache-Control':'no-store'}});
+ }
  if(p[0]==='reservations'){
   const date=req.nextUrl.searchParams.get('date')||'';if(!day.safeParse(date).success)return fail('日期錯誤');
   const days=Number(req.nextUrl.searchParams.get('days')||1);if(![1,7,30].includes(days))return fail('查詢天數無效');

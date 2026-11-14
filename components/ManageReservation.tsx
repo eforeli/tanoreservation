@@ -35,7 +35,6 @@ export default function ManageReservation(){
     <p>姓名：{booking.guest_name}</p><p>電話：{booking.guest_phone}</p>
     <p>日期時間：{format(booking.starts_at)}</p><p>人數：{booking.party_size} 位</p>
     <p>備註：{booking.notes||'無'}</p>
-    <p>狀態：{booking.status==='confirmed'?'已確認':booking.status==='cancelled'?'已取消':booking.status}</p>
    </div>
    {booking.can_manage?<div className="booking-manage-actions">
     <Link href="/reserve/manage/edit" className="booking-link-primary">修改訂位</Link>
@@ -52,7 +51,6 @@ export default function ManageReservation(){
      </div>
     </div>
    </div>}
-   <p className="center small"><button type="button" onClick={()=>{setBooking(null);setError('');}}>查詢其他訂位</button></p>
   </>:<form onSubmit={verify}>
    <p className="muted">請輸入訂位成功時取得的訂單編號，以及訂位時填寫的手機號碼。</p>
    <label>訂單編號<input value={code} required maxLength={32} autoComplete="off" onChange={e=>setCode(e.target.value.toUpperCase())} placeholder="請輸入訂位編號"/></label>

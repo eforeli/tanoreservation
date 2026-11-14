@@ -75,7 +75,7 @@ export default function Reserve({edit=false}:{edit?:boolean}){
   if(!name.trim()){setError(t.requiredName);return;}
   setBusy(true);setError('');
   try{
-   const body=edit?{action:'update',date,time,partySize:party,name,phone,notes,expectedUpdatedAt:original?.updated_at}:{date,time,partySize:party,name,phone,notes,idempotencyKey:key,source:'web'};
+   const body=edit?{action:'update',date,time,partySize:party,notes,expectedUpdatedAt:original?.updated_at}:{date,time,partySize:party,name,phone,notes,idempotencyKey:key,source:'web'};
    const r=await fetch(edit?'/api/customer-booking':'/api/reservations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
    const v=await r.json();if(!r.ok){setError(language==='zh'?(v.error||t.notComplete):t.notComplete);if(edit&&r.status===409){setRefreshSlots(n=>n+1);}return;}
    setReceipt({...v.reservation,guest_phone:phone});
@@ -100,12 +100,12 @@ export default function Reserve({edit=false}:{edit?:boolean}){
     <p>{t.date}：{dateText}</p>
     <p>{t.time}：{timeText}</p>
     <p>{t.phone}：{receipt.guest_phone}</p>
+    {edit&&<p className="receipt-change-notice">訂位資訊已更新</p>}
     {edit&&<p>備註：{notes||'無'}</p>}
-    <p className="receipt-change-notice">{edit?'您的訂位資訊已成功更新，請以本頁最新資訊為準。':t.changeNotice}</p>
    </div>
    {copied&&<div role="status" className="copy-popup">{t.copied}</div>}
    {error&&<p role="alert" className="error">{error}</p>}
-   {!edit&&<p className="receipt-notice receipt-highlight">請<strong>複製</strong>訂位資料，貼到<strong>官方LINE</strong>，餐廳將核對確認。</p>}
+   <p className="receipt-notice receipt-highlight">請<strong>複製</strong>訂位資料，貼到<strong>官方LINE</strong>，餐廳將核對確認。</p>
    <div className="receipt-copy-container"><button type="button" className="primary receipt-copy-button" onClick={async()=>{try{await navigator.clipboard.writeText(copyText);setCopied(true);}catch{setError(t.copyFailed);}}}><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg><span>{t.copyTitle}</span></button></div>
   </section>;
  }
@@ -119,15 +119,16 @@ export default function Reserve({edit=false}:{edit?:boolean}){
    <label>{t.chooseTime}</label>
    <div className="slots">{loading?t.loading:slots.length?slots.map(s=><button type="button" className={s===time?'selected':''} key={s} onClick={()=>setTime(s)}>{s}</button>):dayState==='closed'?t.closed:dayState==='full'?t.full:t.unavailable}</div>
    <div className="two">
-    <label>{t.contactName} <span className="required-star" aria-hidden="true">*</span><input value={name} required maxLength={80} autoComplete="name" onChange={e=>setName(e.target.value)} placeholder={t.namePlaceholder}/></label>
+    <label>{t.contactName} <span className="required-star" aria-hidden="true">*</span><input disabled={edit} value={name} required maxLength={80} autoComplete="name" onChange={e=>setName(e.target.value)} placeholder={t.namePlaceholder}/></label>
     <label>{t.phone} <span className="required-star" aria-hidden="true">*</span>
-     <input type="tel" inputMode="numeric" autoComplete="tel-national" pattern="09[0-9]{8}" minLength={10} maxLength={10} required value={phone}
+     <input disabled={edit} type="tel" inputMode="numeric" autoComplete="tel-national" pattern="09[0-9]{8}" minLength={10} maxLength={10} required value={phone}
       onInvalid={e=>{const input=e.currentTarget;input.setCustomValidity(input.validity.valueMissing?t.requiredPhone:t.phoneFormat);}}
       onChange={e=>{e.currentTarget.setCustomValidity('');setPhone(e.target.value.replace(/\D/g,'').slice(0,10));}}
       placeholder={t.phonePlaceholder}/>
     </label>
    </div>
    <label>{t.notes}<textarea maxLength={500} value={notes} onChange={e=>setNotes(e.target.value)} placeholder={t.notesPlaceholder} rows={3}/></label>
+   {edit&&<p className="muted small">姓名與手機號碼不可自行修改，如需更正請聯絡餐廳。</p>}
    <p className="muted small reservation-terms">{t.terms}</p>
    {error&&<p role="alert" className="error">{error}</p>}
    <button className="primary full" disabled={!time||busy||loading}>{busy?t.submitting:edit?'確定修改訂位':t.submit}</button>

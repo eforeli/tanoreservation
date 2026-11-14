@@ -221,3 +221,27 @@ input[type="date"],input[type="time"]{width:100%;min-width:0;max-width:100%;-web
 .booking-modal{background:var(--paper);border-radius:14px;padding:24px;max-width:460px;width:100%;box-shadow:0 12px 40px #0004}
 .booking-modal h2{font-size:21px}
 @media(max-width:650px){.booking-entry{padding-top:35px;padding-bottom:35px}.booking-manage-actions{flex-direction:column;align-items:stretch}.booking-manage-actions button,.booking-manage-actions .booking-link-primary{flex:auto;width:100%}}
+
+
+/* V1.8 reservation log */
+.reservation-log-filters{display:grid;grid-template-columns:repeat(5,minmax(130px,1fr));gap:12px;align-items:end;margin:20px 0}
+.reservation-log-filters label{min-width:0}
+.reservation-log-filters input,.reservation-log-filters select{margin-bottom:0}
+.reservation-log-filter-actions{display:flex;gap:8px;align-items:center;grid-column:1/-1}
+.reservation-log-summary{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:10px 0;color:var(--muted);font-size:13px}
+.reservation-log-code{display:flex;flex-direction:column;gap:4px;min-width:130px}
+.reservation-log-code strong{overflow-wrap:anywhere}
+.reservation-log-code small{font-size:11px;color:var(--muted);white-space:normal;line-height:1.45}
+.reservation-log-table td{white-space:normal;vertical-align:top;min-width:95px;line-height:1.5}
+.reservation-log-table td:first-child{min-width:190px}
+.reservation-log-pages{display:flex;align-items:center;justify-content:center;gap:16px;margin-top:20px;font-size:13px}
+@media(max-width:900px){.reservation-log-filters{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:650px){
+ .reservation-log-filters{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+ .reservation-log-filters label:nth-child(3),.reservation-log-filters label:nth-child(4),.reservation-log-filters label:nth-child(5){grid-column:1/-1}
+ .reservation-log-filter-actions{grid-column:1/-1}
+ .reservation-log-table td:first-child{min-width:0}
+ .reservation-log-table td{min-width:0}
+ .reservation-log-table td::before{flex-basis:66px}
+ .reservation-log-table tr td[colspan]{display:block;text-align:center}
+}
