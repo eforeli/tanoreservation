@@ -58,7 +58,7 @@ export default function ManageReservation(){
    <label>訂單編號<input value={code} required maxLength={32} autoComplete="off" onChange={e=>setCode(e.target.value.toUpperCase())} placeholder="請輸入訂位編號"/></label>
    <label>手機號碼<input type="tel" inputMode="numeric" value={phone} required pattern="09[0-9]{8}" maxLength={10} autoComplete="tel-national" onChange={e=>setPhone(e.target.value.replace(/\D/g,'').slice(0,10))} placeholder="09xxxxxxxx"/></label>
    <button className="primary full" disabled={busy}>{busy?'查詢中…':'查詢訂位'}</button>
-  </>}
+  </form>}
   {error&&<p role="alert" className="error">{error}</p>}
   <p className="center"><Link href="/reserve" className="booking-text-link">返回訂位服務</Link></p>
  </section>;
