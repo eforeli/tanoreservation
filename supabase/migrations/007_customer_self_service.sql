@@ -74,7 +74,7 @@ end $$;
 -- Customer edits are allowed until the original arrival time, including within
 -- the public new-booking minimum advance window. Keep all other slot constraints.
 create or replace function public.customer_valid_edit_slot(p_date date,p_clock time,p_party int)
-returns boolean language plpgsql stable set search_path=public as $$
+returns boolean language plpgsql volatile set search_path=public as $
 declare s public.booking_settings%rowtype;segments jsonb;seg jsonb;sp public.special_business_hours%rowtype;
  o time;c time;ts timestamptz;cl jsonb;
 begin
@@ -82,7 +82,7 @@ begin
  if s.id is null or p_party<1 or p_party>s.max_online_party_size then return false;end if;
  if p_date<(now() at time zone 'Asia/Taipei')::date or p_date>(now() at time zone 'Asia/Taipei')::date+s.booking_window_days then return false;end if;
  ts:=(p_date::text||' '||p_clock::text)::timestamp at time zone 'Asia/Taipei';
- if ts<=now() then return false;end if;
+ if ts<=clock_timestamp() then return false;end if;
  segments:=public.booking_day_periods(p_date);
  select * into sp from public.special_business_hours where business_date=p_date;
  if found and coalesce(jsonb_array_length(sp.closure_periods),0)>0 then
@@ -142,13 +142,13 @@ begin
  select * into old from public.reservations where id=session_res for update;
  if (old.starts_at at time zone 'Asia/Taipei')::date<>day1 then raise exception 'reservation changed';end if;
  if old.updated_at is distinct from p_expected_updated_at then raise exception 'reservation changed';end if;
- if old.status<>'confirmed' or old.starts_at<=now() then raise exception 'not eligible';end if;
+ if old.status<>'confirmed' or old.starts_at<=clock_timestamp() then raise exception 'not eligible';end if;
  if p_date is null or p_time !~ '^([01][0-9]|2[0-3]):[0-5][0-9]$'
   or p_party<1 or p_party>5 or length(trim(p_name))<1 or length(p_name)>80
   or p_phone !~ '^09[0-9]{8}$' or length(coalesce(p_notes,''))>500
   then raise exception 'not eligible';end if;
  new_start:=(p_date::text||' '||p_time)::timestamp at time zone 'Asia/Taipei';
- if new_start<=now() then raise exception 'not eligible';end if;
+ if new_start<=clock_timestamp() then raise exception 'not eligible';end if;
  changed_slot := new_start<>old.starts_at or p_party<>old.party_size;
  if changed_slot then
   if not public.customer_valid_edit_slot(p_date,p_time::time,p_party) then raise exception 'not eligible';end if;
@@ -185,7 +185,7 @@ begin
  select * into old from public.reservations where id=session_res for update;
  if (old.starts_at at time zone 'Asia/Taipei')::date<>day1 then raise exception 'reservation changed';end if;
  if old.updated_at is distinct from p_expected_updated_at then raise exception 'reservation changed';end if;
- if old.status<>'confirmed' or old.starts_at<=now() then raise exception 'not eligible';end if;
+ if old.status<>'confirmed' or old.starts_at<=clock_timestamp() then raise exception 'not eligible';end if;
  update public.reservations set status='cancelled',cancelled_at=now(),
   cancel_reason='顧客自行取消',updated_at=clock_timestamp()
  where id=old.id returning * into r;
