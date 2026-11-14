@@ -9,7 +9,7 @@ const COOKIE='tano_customer_booking';
 const tokenHash=(token:string)=>createHash('sha256').update(token).digest('hex');
 const fail=(error:string,status:number)=>NextResponse.json({error},{status,headers:{'Cache-Control':'no-store'}});
 const credentials=z.object({
- code:z.string().trim().min(6).max(32),
+ code:z.string().trim().regex(/^[A-Za-z0-9]{6}$/).transform(value=>value.toUpperCase()),
  phone:z.string().regex(/^09\d{8}$/)
 });
 const update=booking.omit({idempotencyKey:true,source:true,name:true,phone:true}).extend({expectedUpdatedAt:z.iso.datetime({offset:true})});
