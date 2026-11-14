@@ -12,7 +12,7 @@ const credentials=z.object({
  code:z.string().trim().min(6).max(32),
  phone:z.string().regex(/^09\d{8}$/)
 });
-const update=booking.omit({idempotencyKey:true,source:true}).extend({expectedUpdatedAt:z.iso.datetime({offset:true})});
+const update=booking.omit({idempotencyKey:true,source:true,name:true,phone:true}).extend({expectedUpdatedAt:z.iso.datetime({offset:true})});
 const expected=z.object({expectedUpdatedAt:z.iso.datetime({offset:true})});
 function session(req:NextRequest){
  const token=req.cookies.get(COOKIE)?.value;
@@ -56,9 +56,11 @@ export async function POST(req:NextRequest){
  if(action==='update'){
   const parsed=update.safeParse(raw);if(!parsed.success)return fail('請填寫完整正確的訂位資料',400);
   const b=parsed.data;
+  const {data:current,error:lookupError}=await rpc('customer_get_booking',{p_token_hash:hash});
+  if(lookupError||!current)return mapFailure(lookupError?.message||'session expired');
   const {data,error}=await rpc('customer_update_booking',{
    p_token_hash:hash,p_date:b.date,p_time:b.time,p_party:b.partySize,
-   p_name:b.name,p_phone:b.phone,p_notes:b.notes,p_expected_updated_at:b.expectedUpdatedAt
+   p_name:current.guest_name,p_phone:current.guest_phone,p_notes:b.notes,p_expected_updated_at:b.expectedUpdatedAt
   });
   if(error){console.error('customer update',error.code);return mapFailure(error.message);}
   const response=cookieResponse({reservation:data});
