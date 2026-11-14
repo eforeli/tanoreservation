@@ -1,13 +1,95 @@
 'use client';
 import {useEffect,useState} from 'react';
+import {useLanguage} from '@/components/SiteShell';
+
 function taiwanToday(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());}
 type Receipt={confirmation_code:string;starts_at:string;party_size:number;guest_name:string};
+const strings={
+ zh:{
+  bookingConfirmed:'訂位成功',bookingCode:'訂位編號',guest:'姓名',persons:'人數',date:'日期',time:'時間',personUnit:' 位',
+  copyTitle:'複製所有訂位資訊',copied:'訂位資訊已複製',copyFailed:'複製失敗，請手動截圖保存',
+  receiptNotice:'請截圖保存此頁。訂位目前不收訂金，若需取消或修改訂位資訊，煩請提早由LINE官方傳訊息通知我們。謝謝！',
+  heading:'預約 TANO 的一席',tagline:'炭火慢慢逼出肉香，也定下 TANO 的味道。',
+  diningDate:'用餐日期',party:'用餐人數',chooseTime:'選擇入席時間',loading:'查詢可訂時段中…',empty:'當日目前沒有可訂時段',
+  contactName:'聯絡姓名',phone:'手機號碼',namePlaceholder:'請填寫姓名',phonePlaceholder:'09xxxxxxxx',
+  notes:'備註（選填）',notesPlaceholder:'例如：過敏資訊',requiredName:'請填寫聯絡姓名',requiredPhone:'請填寫手機號碼',phoneFormat:'10 碼手機號碼',
+  terms:'送出即同意訂位保留與取消規則依餐廳為主；尖峰時段(若客滿）用餐時間為2小時。',
+  submit:'確認訂位',submitting:'送出中…',largeParty:'6 人以上請透過 TANO LINE 官方帳號聯絡餐廳。',
+  connectionFailed:'連線失敗，請重新整理',notComplete:'訂位未完成',networkError:'網路錯誤，請確認訂位是否成立再重試',
+ },
+ en:{
+  bookingConfirmed:'Reservation Confirmed',bookingCode:'Reservation Code',guest:'Name',persons:'Party Size',date:'Date',time:'Time',personUnit:' guests',
+  copyTitle:'Copy all reservation details',copied:'Reservation details copied',copyFailed:'Unable to copy. Please save a screenshot instead.',
+  receiptNotice:'Please take a screenshot of this page for your records. No deposit is required. If you need to cancel or change your reservation, please notify us early through our official LINE account. Thank you!',
+  heading:'Reserve a Table at TANO',tagline:'Slowly grilled over charcoal, crafted with the unmistakable taste of TANO.',
+  diningDate:'Dining Date',party:'Party Size',chooseTime:'Select an Arrival Time',loading:'Checking available times…',empty:'No available times for this date',
+  contactName:'Contact Name',phone:'Mobile Number',namePlaceholder:'Enter your name',phonePlaceholder:'09xxxxxxxx',
+  notes:'Notes (optional)',notesPlaceholder:'e.g., food allergies',requiredName:'Please enter your name',requiredPhone:'Please enter your mobile number',phoneFormat:'10-digit mobile number',
+  terms:'By submitting, you agree that the restaurant’s reservation holding and cancellation policies apply. During peak hours (when fully booked), dining time is limited to 2 hours.',
+  submit:'Confirm Reservation',submitting:'Submitting…',largeParty:'For parties of 6 or more, please contact TANO through our official LINE account.',
+  connectionFailed:'Connection failed. Please refresh the page.',notComplete:'Reservation could not be completed',networkError:'Network error. Please check whether your reservation was confirmed before trying again.',
+ }
+} as const;
+
 export default function Reserve(){
+ const {language}=useLanguage();const t=strings[language];
  const [date,setDate]=useState(taiwanToday),[party,setParty]=useState(2),[slots,setSlots]=useState<string[]>([]),[time,setTime]=useState(''),[name,setName]=useState(''),[phone,setPhone]=useState(''),[notes,setNotes]=useState('');
  const [busy,setBusy]=useState(false),[loading,setLoading]=useState(false),[error,setError]=useState(''),[receipt,setReceipt]=useState<Receipt|null>(null);
  const [key]=useState(()=>crypto.randomUUID()),[copied,setCopied]=useState(false);
- useEffect(()=>{let live=true;setTime('');setError('');setLoading(true);fetch(`/api/availability?date=${date}&partySize=${party}`,{cache:'no-store'}).then(r=>r.json()).then(x=>{if(live){setSlots(x.slots||[]);if(x.error)setError(x.error);}}).catch(()=>{if(live)setError('連線失敗，請重新整理');}).finally(()=>{if(live)setLoading(false);});return()=>{live=false;};},[date,party]);
- async function submit(e:React.FormEvent){e.preventDefault();if(!time||busy)return;if(!/^09\d{8}$/.test(phone)){setError('手機號碼須為 09 開頭的 10 位數字');return;}if(!name.trim()){setError('請填寫聯絡姓名');return;}setBusy(true);setError('');try{const r=await fetch('/api/reservations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({date,time,partySize:party,name,phone,notes,idempotencyKey:key,source:'web'})});const v=await r.json();if(!r.ok){setError(v.error||'訂位未完成');return;}setReceipt(v.reservation);}catch{setError('網路錯誤，請確認訂位是否成立再重試');}finally{setBusy(false);}}
- if(receipt){const when=new Date(receipt.starts_at);const dateText=new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',year:'numeric',month:'long',day:'numeric',weekday:'long'}).format(when);const timeText=new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',hour:'numeric',minute:'2-digit',hour12:true}).format(when);const copyText=`訂位編號：${receipt.confirmation_code}\n姓名：${receipt.guest_name}\n人數：${receipt.party_size} 位\n日期：${dateText}\n時間：${timeText}`;return <section className="panel narrow"><div className="eyebrow">BOOKING CONFIRMED</div><h1>訂位成功</h1><div className="receipt"><button type="button" className="receipt-copy" aria-label="複製所有訂位資訊" title="複製所有訂位資訊" onClick={async()=>{try{await navigator.clipboard.writeText(copyText);setCopied(true);setTimeout(()=>setCopied(false),2000);}catch{setError('複製失敗，請手動截圖保存');}}}><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg></button><p>訂位編號</p><p className="receipt-code">{receipt.confirmation_code}</p><p>姓名：{receipt.guest_name}</p><p>人數：{receipt.party_size} 位</p><p>時間：{dateText} {timeText}</p></div>{copied&&<div role="status" className="copy-popup">訂位資訊已複製</div>}{error&&<p role="alert" className="error">{error}</p>}<p className="muted">請截圖保存此頁。訂位目前不收訂金，若需取消或修改訂位資訊，煩請提早由LINE官方傳訊息通知我們。謝謝！</p></section>;}
- return <section className="panel narrow"><div className="eyebrow">RESERVATION</div><h1>預約 TANO 的一席</h1><p className="muted">炭火慢慢逼出肉香，也定下 TANO 的味道。</p><form onSubmit={submit}><div className="two"><label className="date-field">用餐日期<input type="date" required min={taiwanToday()} value={date} onChange={e=>setDate(e.target.value)}/></label><label>用餐人數<select value={party} onChange={e=>setParty(Number(e.target.value))}>{[1,2,3,4,5].map(n=><option key={n} value={n}>{n} 人</option>)}</select></label></div><label>選擇入席時間</label><div className="slots">{loading?'查詢可訂時段中…':slots.length?slots.map(s=><button type="button" className={s===time?'selected':''} key={s} onClick={()=>setTime(s)}>{s}</button>):'當日目前沒有可訂時段'}</div><div className="two"><label>聯絡姓名<input value={name} required maxLength={80} onChange={e=>setName(e.target.value)} placeholder="請填寫姓名"/></label><label>手機號碼<input type="tel" inputMode="numeric" autoComplete="tel-national" pattern="09[0-9]{8}" minLength={10} maxLength={10} required value={phone} onChange={e=>setPhone(e.target.value.replace(/\D/g,'').slice(0,10))} placeholder="09xxxxxxxx"/><span className="field-hint">請輸入 09 開頭的 10 碼手機號碼</span></label></div><label>備註（選填）<textarea maxLength={500} value={notes} onChange={e=>setNotes(e.target.value)} placeholder="例如：過敏資訊" rows={3}/></label><p className="muted small">送出即同意餐廳僅為訂位聯繫及管理使用姓名、電話與備註。訂位保留與取消規則請洽餐廳。</p>{error&&<p role="alert" className="error">{error}</p>}<button className="primary full" disabled={!time||busy||loading}>{busy?'送出中…':'確認訂位'}</button></form><p className="muted center">6 人以上請透過 TANO LINE 官方帳號聯絡餐廳。</p></section>;
+ useEffect(()=>{let live=true;setTime('');setError('');setLoading(true);fetch(`/api/availability?date=${date}&partySize=${party}`,{cache:'no-store'})
+  .then(r=>r.json()).then(x=>{if(live){setSlots(x.slots||[]);if(x.error)setError(language==='zh'?x.error:t.notComplete);}})
+  .catch(()=>{if(live)setError(t.connectionFailed);}).finally(()=>{if(live)setLoading(false);});return()=>{live=false;};},[date,party,language,t.connectionFailed,t.notComplete]);
+ useEffect(()=>{if(!copied)return;const timer=setTimeout(()=>setCopied(false),2000);return()=>clearTimeout(timer);},[copied]);
+ async function submit(e:React.FormEvent){e.preventDefault();if(!time||busy)return;
+  if(!/^09\d{8}$/.test(phone)){setError(t.phoneFormat);return;}
+  if(!name.trim()){setError(t.requiredName);return;}
+  setBusy(true);setError('');
+  try{const r=await fetch('/api/reservations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({date,time,partySize:party,name,phone,notes,idempotencyKey:key,source:'web'})});
+   const v=await r.json();if(!r.ok){setError(language==='zh'?(v.error||t.notComplete):t.notComplete);return;}setReceipt(v.reservation);}
+  catch{setError(t.networkError);}finally{setBusy(false);}
+ }
+ if(receipt){
+  const when=new Date(receipt.starts_at),locale=language==='zh'?'zh-TW':'en-US';
+  const dateText=new Intl.DateTimeFormat(locale,{timeZone:'Asia/Taipei',year:'numeric',month:'long',day:'numeric',weekday:'long'}).format(when);
+  const timeText=new Intl.DateTimeFormat(locale,{timeZone:'Asia/Taipei',hour:'numeric',minute:'2-digit',hour12:true}).format(when);
+  const copyText=[`${t.bookingCode}：${receipt.confirmation_code}`,`${t.guest}：${receipt.guest_name}`,`${t.persons}：${receipt.party_size}${t.personUnit}`,`${t.date}：${dateText}`,`${t.time}：${timeText}`].join('\n');
+  return <section className="panel narrow">
+   <div className="eyebrow">BOOKING CONFIRMED</div><h1>{t.bookingConfirmed}</h1>
+   <div className="receipt">
+    <button type="button" className="receipt-copy" aria-label={t.copyTitle} title={t.copyTitle} onClick={async()=>{try{await navigator.clipboard.writeText(copyText);setCopied(true);}catch{setError(t.copyFailed);}}}>
+     <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>
+    </button>
+    <p>{t.bookingCode}</p><p className="receipt-code">{receipt.confirmation_code}</p>
+    <p>{t.guest}：{receipt.guest_name}</p><p>{t.persons}：{receipt.party_size}{t.personUnit}</p><p>{t.time}：{dateText} {timeText}</p>
+   </div>
+   {copied&&<div role="status" className="copy-popup">{t.copied}</div>}
+   {error&&<p role="alert" className="error">{error}</p>}
+   <p className="muted">{t.receiptNotice}</p>
+  </section>;
+ }
+ return <section className="panel narrow">
+  <div className="eyebrow">RESERVATION</div><h1>{t.heading}</h1><p className="muted">{t.tagline}</p>
+  <form onSubmit={submit}>
+   <div className="two">
+    <label className="date-field">{t.diningDate}<input type="date" required min={taiwanToday()} value={date} onChange={e=>setDate(e.target.value)}/></label>
+    <label>{t.party}<select value={party} onChange={e=>setParty(Number(e.target.value))}>{[1,2,3,4,5].map(n=><option key={n} value={n}>{n}{t.personUnit}</option>)}</select></label>
+   </div>
+   <label>{t.chooseTime}</label>
+   <div className="slots">{loading?t.loading:slots.length?slots.map(s=><button type="button" className={s===time?'selected':''} key={s} onClick={()=>setTime(s)}>{s}</button>):t.empty}</div>
+   <div className="two">
+    <label>{t.contactName} <span className="required-star" aria-hidden="true">*</span><input value={name} required maxLength={80} autoComplete="name" onChange={e=>setName(e.target.value)} placeholder={t.namePlaceholder}/></label>
+    <label>{t.phone} <span className="required-star" aria-hidden="true">*</span>
+     <input type="tel" inputMode="numeric" autoComplete="tel-national" pattern="09[0-9]{8}" minLength={10} maxLength={10} required value={phone}
+      onInvalid={e=>{const input=e.currentTarget;input.setCustomValidity(input.validity.valueMissing?t.requiredPhone:t.phoneFormat);}}
+      onChange={e=>{e.currentTarget.setCustomValidity('');setPhone(e.target.value.replace(/\D/g,'').slice(0,10));}}
+      placeholder={t.phonePlaceholder}/>
+    </label>
+   </div>
+   <label>{t.notes}<textarea maxLength={500} value={notes} onChange={e=>setNotes(e.target.value)} placeholder={t.notesPlaceholder} rows={3}/></label>
+   <p className="muted small">{t.terms}</p>
+   {error&&<p role="alert" className="error">{error}</p>}
+   <button className="primary full" disabled={!time||busy||loading}>{busy?t.submitting:t.submit}</button>
+  </form>
+  <p className="muted center">{t.largeParty}</p>
+ </section>;
 }
