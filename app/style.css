@@ -1,3 +1,52 @@
 :root{color-scheme:light;--ink:#2c2825;--cream:#f8f5ef;--paper:#fffdf9;--accent:#8e4e30;--border:#e5dfd5;--muted:#78716b}*{box-sizing:border-box}body{margin:0;background:var(--cream);color:var(--ink);font-family:system-ui,-apple-system,'Noto Sans TC',sans-serif}a{color:inherit;text-decoration:none}button,input,select,textarea{font:inherit}button{cursor:pointer;border:1px solid var(--border);border-radius:9px;background:#fff;padding:10px 14px;color:var(--ink)}button:hover:not(:disabled){border-color:var(--accent)}button:disabled{opacity:.5;cursor:not-allowed}input,select,textarea{display:block;width:100%;padding:12px;border:1px solid var(--border);background:#fff;border-radius:8px;margin:7px 0 16px;color:var(--ink)}textarea{resize:vertical}label{font-size:14px;font-weight:600;display:block}.topbar{display:flex;justify-content:space-between;align-items:center;background:#29221e;color:#fff;padding:16px max(20px,calc((100vw - 1120px)/2))}.brand{font-family:Georgia,serif;font-size:25px;letter-spacing:.12em}.brand small{display:block;font:9px system-ui;letter-spacing:.18em}.topbar nav{display:flex;gap:18px;font-size:13px}main{min-height:calc(100vh - 144px);padding:34px 18px}footer{text-align:center;padding:26px 12px;color:var(--muted);font-size:12px}.panel{margin:0 auto;background:var(--paper);border:1px solid var(--border);border-radius:16px;padding:30px;max-width:1080px;box-shadow:0 8px 30px #2d201009}.narrow{max-width:600px}.eyebrow{color:var(--accent);font-size:12px;letter-spacing:.18em;font-weight:700}h1{font-family:Georgia,'Noto Serif TC',serif;font-size:30px;margin:8px 0 14px}h2{margin:6px 0}.muted{color:var(--muted);line-height:1.7}.small{font-size:12px}.center{text-align:center}.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}.slots{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;min-height:50px;margin:12px 0 22px;color:var(--muted);font-size:14px}.slots .selected,.primary{color:#fff;background:var(--accent);border-color:var(--accent)}.full{width:100%;margin-top:10px}.error{color:#af3333;background:#ffefed;padding:12px;border-radius:7px}.receipt{padding:20px;background:#f3ece2;border-radius:10px;margin:24px 0}.receipt h2{font-size:28px;letter-spacing:.06em}.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:20px}.toolbar input,.toolbar select{margin-bottom:0}.tablewrap{overflow:auto}table{width:100%;border-collapse:collapse;font-size:13px}td,th{padding:12px 8px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}th{background:#f5efe7}section+section{margin-top:25px}.tabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}.tabs button.active{background:#342a25;color:#fff}.actions{display:flex;flex-wrap:wrap;gap:6px}.actions button{padding:6px 9px;font-size:12px}.stats{display:flex;gap:16px;margin:10px 0 20px}.stats span{padding:12px;background:#f5efe7;border-radius:9px}.notice{background:#fff1d5;padding:12px;border:1px solid #efd7ab;border-radius:8px}.grid-table{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}.tablecard{padding:14px;border-radius:10px;background:#f5efe7;min-width:0}.tablecard strong{display:block}.tablecard p{font-size:12px;overflow-wrap:anywhere}.stack{display:grid;gap:10px}.stack button{justify-self:start}@media(max-width:650px){main{padding:16px 10px}.panel{padding:20px 15px}.two{grid-template-columns:1fr;gap:0}.grid-table{grid-template-columns:repeat(2,1fr)}.topbar{padding:14px}.topbar nav{gap:9px}.brand{font-size:21px}h1{font-size:25px}}
 /* V1.1 receipt and non-blocking admin feedback */
 .receipt-number{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.receipt-number h2{margin:0}.receipt-number button{display:inline-flex;align-items:center;justify-content:center;padding:10px}.toast{position:fixed;top:22px;right:22px;z-index:1000;max-width:min(420px,calc(100vw - 40px));padding:13px 18px;border-radius:10px;background:#2e4835;color:#fff;box-shadow:0 10px 30px #0003;font-size:14px}.toast.error{background:#9d3834;color:#fff}
+
+/* V1.2: responsive reservation form, booking receipt and mobile operations */
+html,body{max-width:100%;overflow-x:clip}
+.panel,.narrow,.two,.two>label,.booking-controls>label{min-width:0}
+input,select,textarea{max-width:100%;min-width:0}
+input[type="date"],input[type="time"]{width:100%;min-width:0;max-width:100%;-webkit-appearance:auto;appearance:auto}
+.date-field{min-width:0;max-width:100%}
+.receipt{position:relative;padding-top:54px}
+.receipt-copy{position:absolute;top:14px;right:14px;width:43px;height:43px;display:flex;align-items:center;justify-content:center}
+.receipt-code{font-size:clamp(20px,5vw,28px);font-weight:400;letter-spacing:.07em;overflow-wrap:anywhere;margin:10px 0 18px}
+.copy-popup{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:1001;background:#2e2a26;color:#fff;padding:14px 22px;border-radius:12px;box-shadow:0 12px 32px #0003;white-space:nowrap;font-size:14px;pointer-events:none}
+.field-hint{display:block;color:var(--muted);font-size:12px;margin:-11px 0 14px;font-weight:400}
+.range-buttons{display:flex;gap:8px;flex-wrap:wrap}
+.range-buttons .active{background:#342a25;color:#fff;border-color:#342a25}
+.booking-controls{align-items:end}
+.booking-controls>label{flex:1 1 170px}
+.booking-controls>label input{margin-top:7px}
+.responsive-table td a{text-decoration:underline;text-underline-offset:2px}
+@media(max-width:650px){
+ main{padding:12px 8px}
+ .panel{padding:20px 14px;border-radius:12px;max-width:100%}
+ .topbar{gap:8px;flex-wrap:wrap}
+ .tabs{display:flex;flex-wrap:nowrap;overflow-x:auto;gap:6px;padding:0 0 10px;scrollbar-width:thin;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
+ .tabs button{flex:0 0 auto;white-space:nowrap;padding:10px 12px;min-height:44px}
+ .two{grid-template-columns:minmax(0,1fr)}
+ .slots{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .toolbar{align-items:stretch;gap:8px}
+ .toolbar>label{width:100%;min-width:0}
+ .toolbar>button{min-height:42px}
+ .range-buttons{width:100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
+ .range-buttons button{padding:10px 4px;font-size:13px;min-width:0}
+ .stats{flex-wrap:wrap;gap:8px}
+ .stats span{flex:1 1 130px}
+ .responsive-table,.responsive-table tbody,.responsive-table tr,.responsive-table td{display:block;width:100%}
+ .responsive-table thead{display:none}
+ .responsive-table{border-collapse:separate;border-spacing:0}
+ .responsive-table tr{border:1px solid var(--border);background:#fff;border-radius:12px;padding:10px 12px;margin:0 0 12px}
+ .responsive-table td{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:9px 0;white-space:normal;overflow-wrap:anywhere}
+ .responsive-table td:last-child{border-bottom:0}
+ .responsive-table td::before{content:attr(data-label);font-size:12px;color:var(--muted);flex:0 0 60px;font-weight:600}
+ .responsive-table td .actions{justify-content:flex-end}
+ .responsive-table td .actions button{min-height:40px;min-width:58px}
+ .grid-table{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+ .tablecard{padding:10px}
+ .toast{top:12px;right:12px;left:12px;max-width:none}
+ .receipt{padding:54px 16px 20px}
+ .receipt-code{font-size:23px}
+}
+@media(max-width:360px){.range-buttons button{font-size:12px}.grid-table{grid-template-columns:1fr}}
