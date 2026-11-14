@@ -7,6 +7,7 @@
 - 時間：每天 **03:17（台灣時間）**；可從 Actions 手動觸發。
 - 備份儲存：GitHub Actions **Artifact**，僅上傳 **GPG AES-256 加密**的備份壓縮包與校驗碼。保留 30 天。
 - GitHub repo 是**公開的**，因此所有備份都必須先加密。備份金鑰**不得存於原始碼、Issue、PR、聊天內容或 Artifact**。
+- **重要：GitHub 可能在公開 Repository 連續 60 天沒有程式庫活動後，自動停用排程工作流程。** 如果上線後很少改程式，這是營運上不可接受的盲點。**建議將這個 Repo 改為 Private，或將備份工作流程獨立搬到 Private Repo，再完成首次備份驗收。** 單靠目前公開 Repo 的 Schedule 不能保證長期自動備份。
 - 這是**每日快照**，不是即時備份／PITR。最多可能遺失兩次備份間的訂位更新（約 24 小時，另加上排程延遲）。
 - GitHub Artifacts 會到期。**每月**應另外下載一份加密檔到可信任的獨立儲存空間（例如離線加密硬碟或受控雲端硬碟）。不可只依賴 GitHub。
 - Supabase 平台管理的 `auth`、`storage` schema / 身分驗證帳號與 Storage 物件**不保證包含於 CLI 正常匯出**。若需完整災難復原，必須另行規劃身分驗證帳號與 Storage 物件的備份。本系統目前的主要營運資料在 `public` schema。
@@ -20,6 +21,7 @@
 3. GitHub → **Actions → TANO encrypted daily database backup → Run workflow**，選 `main` 手動執行一次。
 4. 確認 Workflow **Success**，且該次執行產生名稱類似 `tano-db-encrypted-<run-id>` 的 Artifact。
 5. **下載一份加密 Artifact**，依下方步驟在新的隔離資料庫還原，成功驗證後才能稱為「具備可還原的備份機制」。不要在正式資料庫直接試還原。
+6. **把 Repo 設為 Private，或把備份排程移到 Private Repo**，避免公開 Repository 閒置 60 天後自動停用定時備份。
 
 > Secrets 尚未設定時，工作流程會失敗並提示缺少設定；不能視為已啟用。不要把任何連線金鑰或備份密語貼進對話。
 
