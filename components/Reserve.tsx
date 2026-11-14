@@ -4,6 +4,7 @@ import {useLanguage} from '@/components/SiteShell';
 
 function taiwanToday(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());}
 type Receipt={confirmation_code:string;starts_at:string;party_size:number;guest_name:string;guest_phone:string};
+type ManagedBooking=Receipt&{notes:string;status:string;updated_at:string;can_manage:boolean};
 const strings={
  zh:{
   bookingConfirmed:'訂位成功',bookingCode:'訂位編號',guest:'姓名',persons:'人數',date:'日期',time:'時間',personUnit:' 位',
@@ -31,23 +32,58 @@ const strings={
  }
 } as const;
 
-export default function Reserve(){
+export default function Reserve({edit=false}:{edit?:boolean}){
  const {language}=useLanguage();const t=strings[language];
  const [date,setDate]=useState(taiwanToday),[party,setParty]=useState(2),[slots,setSlots]=useState<string[]>([]),[time,setTime]=useState(''),[dayState,setDayState]=useState<'closed'|'full'|'unavailable'|'available'>('unavailable'),[name,setName]=useState(''),[phone,setPhone]=useState(''),[notes,setNotes]=useState('');
  const [busy,setBusy]=useState(false),[loading,setLoading]=useState(false),[error,setError]=useState(''),[receipt,setReceipt]=useState<Receipt|null>(null);
  const [key]=useState(()=>crypto.randomUUID()),[copied,setCopied]=useState(false);
- useEffect(()=>{let live=true;setTime('');setError('');setLoading(true);fetch(`/api/availability?date=${date}&partySize=${party}`,{cache:'no-store'})
-  .then(r=>r.json()).then(x=>{if(live){setSlots(x.slots||[]);setDayState(x.state||'unavailable');if(x.error)setError(language==='zh'?x.error:t.notComplete);}})
-  .catch(()=>{if(live)setError(t.connectionFailed);}).finally(()=>{if(live)setLoading(false);});return()=>{live=false;};},[date,party,language,t.connectionFailed,t.notComplete]);
+ const [original,setOriginal]=useState<ManagedBooking|null>(null),[initializing,setInitializing]=useState(edit);
+ const [ready,setReady]=useState(!edit);
+ useEffect(()=>{if(!edit)return;let active=true;
+  fetch('/api/customer-booking',{cache:'no-store'}).then(async r=>{
+   const v=await r.json();if(!r.ok)throw Error(v.error||'請先驗證訂位');
+   return v.reservation as ManagedBooking;
+  }).then(r=>{if(!active)return;
+   if(!r.can_manage){setError('此筆訂位目前無法線上修改');return;}
+   const when=new Date(r.starts_at);
+   const d=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).format(when);
+   setOriginal(r);setDate(d);setParty(r.party_size);setName(r.guest_name);
+   setPhone(r.guest_phone);setNotes(r.notes||'');
+   setReady(true);
+  }).catch(e=>{if(active)setError(e instanceof Error?e.message:'請重新查詢訂位');})
+  .finally(()=>{if(active)setInitializing(false);});
+  return()=>{active=false;};
+ },[edit]);
+ useEffect(()=>{if(!ready)return;let live=true;setTime('');setError('');setLoading(true);fetch(edit?
+  `/api/customer-booking?mode=slots&date=${date}&partySize=${party}`:
+  `/api/availability?date=${date}&partySize=${party}`,{cache:'no-store'})
+  .then(r=>r.json()).then(x=>{if(live){setSlots(x.slots||[]);setDayState(x.state||'unavailable');if(x.error)setError(language==='zh'?x.error:t.notComplete);
+   if(edit&&original){
+    const when=new Date(original.starts_at);
+    const originalDay=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).format(when);
+    const originalTime=new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Taipei',hour:'2-digit',minute:'2-digit',hour12:false}).format(when);
+    if(date===originalDay&&party===original.party_size){
+     setSlots(prev=>prev.includes(originalTime)?prev:[...prev,originalTime].sort());
+     setTime(originalTime);
+    }
+   }
+  }})
+  .catch(()=>{if(live)setError(t.connectionFailed);}).finally(()=>{if(live)setLoading(false);});return()=>{live=false;};},[date,party,language,t.connectionFailed,t.notComplete,edit,ready,original]);
  useEffect(()=>{if(!copied)return;const timer=setTimeout(()=>setCopied(false),2000);return()=>clearTimeout(timer);},[copied]);
  async function submit(e:React.FormEvent){e.preventDefault();if(!time||busy)return;
   if(!/^09\d{8}$/.test(phone)){setError(t.phoneFormat);return;}
   if(!name.trim()){setError(t.requiredName);return;}
   setBusy(true);setError('');
-  try{const r=await fetch('/api/reservations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({date,time,partySize:party,name,phone,notes,idempotencyKey:key,source:'web'})});
-   const v=await r.json();if(!r.ok){setError(language==='zh'?(v.error||t.notComplete):t.notComplete);return;}setReceipt({...v.reservation,guest_phone:phone});}
+  try{
+   const body=edit?{action:'update',date,time,partySize:party,name,phone,notes,expectedUpdatedAt:original?.updated_at}:{date,time,partySize:party,name,phone,notes,idempotencyKey:key,source:'web'};
+   const r=await fetch(edit?'/api/customer-booking':'/api/reservations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+   const v=await r.json();if(!r.ok){setError(language==='zh'?(v.error||t.notComplete):t.notComplete);return;}
+   setReceipt({...v.reservation,guest_phone:phone});
+  }
   catch{setError(t.networkError);}finally{setBusy(false);}
  }
+ if(edit&&initializing)return <section className="panel narrow"><p className="muted">載入原訂位中…</p></section>;
+ if(edit&&!original)return <section className="panel narrow"><h1>無法修改訂位</h1><p role="alert" className="error">{error||'請重新查詢訂位'}</p><a href="/reserve/manage">返回查詢訂位</a></section>;
  if(receipt){
   const when=new Date(receipt.starts_at);
   const calendarDate=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).format(when).replace(/-/g,'/');
@@ -56,7 +92,7 @@ export default function Reserve(){
   const timeText=new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Taipei',hour:'2-digit',minute:'2-digit',hour12:false}).format(when);
   const copyText=[`${t.bookingCode}：${receipt.confirmation_code}`,`${t.guest}：${receipt.guest_name}`,`${t.persons}：${receipt.party_size}`,`${t.date}：${dateText}`,`${t.time}：${timeText}`,`${t.phone}：${receipt.guest_phone}`,'',t.changeNotice].join('\n');
   return <section className="panel narrow">
-   <div className="eyebrow">BOOKING CONFIRMED</div><h1>{t.bookingConfirmed}</h1>
+   <div className="eyebrow">BOOKING CONFIRMED</div><h1>{edit?'訂位修改成功！':t.bookingConfirmed}</h1>
    <div className="receipt">
     <p>{t.bookingCode}：{receipt.confirmation_code}</p>
     <p>{t.guest}：{receipt.guest_name}</p>
@@ -64,16 +100,17 @@ export default function Reserve(){
     <p>{t.date}：{dateText}</p>
     <p>{t.time}：{timeText}</p>
     <p>{t.phone}：{receipt.guest_phone}</p>
-    <p className="receipt-change-notice">{t.changeNotice}</p>
+    <p className="receipt-change-notice">{edit?'您的訂位資訊已成功更新，請以本頁最新資訊為準。':t.changeNotice}</p>
    </div>
    {copied&&<div role="status" className="copy-popup">{t.copied}</div>}
    {error&&<p role="alert" className="error">{error}</p>}
-   <p className="receipt-notice receipt-highlight">請<strong>複製</strong>訂位資料，貼到<strong>官方LINE</strong>，餐廳將核對確認。</p>
+   {!edit&&<p className="receipt-notice receipt-highlight">請<strong>複製</strong>訂位資料，貼到<strong>官方LINE</strong>，餐廳將核對確認。</p>}
    <div className="receipt-copy-container"><button type="button" className="primary receipt-copy-button" onClick={async()=>{try{await navigator.clipboard.writeText(copyText);setCopied(true);}catch{setError(t.copyFailed);}}}><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg><span>{t.copyTitle}</span></button></div>
+   {edit&&<p className="center"><a href="/reserve">返回訂位服務</a></p>}
   </section>;
  }
  return <section className="panel narrow">
-  <div className="eyebrow">RESERVATION</div><h1>{t.heading}</h1><p className="muted">{t.tagline}</p>
+  <div className="eyebrow">RESERVATION</div><h1>{edit?'修改訂位':t.heading}</h1><p className="muted">{t.tagline}</p>
   <form onSubmit={submit}>
    <div className="two">
     <label className="date-field">{t.diningDate}<input type="date" required min={taiwanToday()} value={date} onChange={e=>setDate(e.target.value)}/></label>
@@ -93,8 +130,9 @@ export default function Reserve(){
    <label>{t.notes}<textarea maxLength={500} value={notes} onChange={e=>setNotes(e.target.value)} placeholder={t.notesPlaceholder} rows={3}/></label>
    <p className="muted small reservation-terms">{t.terms}</p>
    {error&&<p role="alert" className="error">{error}</p>}
-   <button className="primary full" disabled={!time||busy||loading}>{busy?t.submitting:t.submit}</button>
+   <button className="primary full" disabled={!time||busy||loading}>{busy?t.submitting:edit?'確定修改訂位':t.submit}</button>
   </form>
   <p className="muted center">{t.largeParty}</p>
+  {edit&&<p className="center"><a href="/reserve/manage">返回原訂位</a></p>}
  </section>;
 }
