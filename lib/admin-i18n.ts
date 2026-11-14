@@ -47,7 +47,6 @@ const spanish:Record<string,string>={
   "桌況與鎖桌": "Mesas y bloqueos",
   "特殊休假與營業": "Horarios especiales",
   "營運設定": "Configuración",
-  "訂位log": "Historial de cambios",
   "訂位 log": "Historial de cambios",
   "新增訂位": "Nueva reserva",
   "編輯訂位": "Editar reserva",
