@@ -8,11 +8,16 @@ export default function ManageReservation(){
  const [booking,setBooking]=useState<Reservation|null>(null);
  const [busy,setBusy]=useState(false),[loading,setLoading]=useState(true);
  const [error,setError]=useState(''),[confirm,setConfirm]=useState(false),[cancelled,setCancelled]=useState(false);
- useEffect(()=>{let active=true;fetch('/api/customer-booking',{cache:'no-store'})
-  .then(r=>r.ok?r.json():null).then(v=>{if(active&&v?.reservation)setBooking(v.reservation);})
-  .catch(()=>{}).finally(()=>{if(active)setLoading(false);});
-  return()=>{active=false;};},[]);
- async function verify(e:React.FormEvent){e.preventDefault();if(busy)return;
+ useEffect(()=>{
+  let active=true;
+  setCode('');setPhone('');setBooking(null);setConfirm(false);setCancelled(false);setError('');
+  fetch('/api/customer-booking',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'reset'}),cache:'no-store'})
+   .then(async response=>{if(!response.ok)throw Error('無法重設查詢狀態，請重新整理頁面');})
+   .catch(e=>{if(active)setError(e instanceof Error?e.message:'無法重設查詢狀態');})
+   .finally(()=>{if(active)setLoading(false);});
+  return()=>{active=false;};
+ },[]);
+ async function verify(e:React.FormEvent){e.preventDefault();if(busy||loading||error.startsWith('無法重設查詢狀態'))return;
   setBusy(true);setError('');
   try{const response=await fetch('/api/customer-booking',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'verify',code:code.trim(),phone})});
    const data=await response.json();if(!response.ok){setError(data.error||'查詢失敗');return;}setBooking(data.reservation);
@@ -51,11 +56,11 @@ export default function ManageReservation(){
      </div>
     </div>
    </div>}
-  </>:<form onSubmit={verify}>
+  </>:<form onSubmit={verify} autoComplete="off">
    <p className="muted">請輸入訂位成功時取得的訂單編號，以及訂位時填寫的手機號碼。</p>
    <label>訂單編號<input value={code} required maxLength={32} autoComplete="off" onChange={e=>setCode(e.target.value.toUpperCase())} placeholder="請輸入訂位編號"/></label>
-   <label>手機號碼<input type="tel" inputMode="numeric" value={phone} required pattern="09[0-9]{8}" maxLength={10} autoComplete="tel-national" onChange={e=>setPhone(e.target.value.replace(/\D/g,'').slice(0,10))} placeholder="09xxxxxxxx"/></label>
-   <button className="primary full" disabled={busy}>{busy?'查詢中…':'查詢訂位'}</button>
+   <label>手機號碼<input type="tel" inputMode="numeric" value={phone} required pattern="09[0-9]{8}" maxLength={10} autoComplete="off" onChange={e=>setPhone(e.target.value.replace(/\D/g,'').slice(0,10))} placeholder="09xxxxxxxx"/></label>
+   <button className="primary full" disabled={busy||loading||error.startsWith('無法重設查詢狀態')}>{busy?'查詢中…':'查詢訂位'}</button>
   </form>}
   {error&&<p role="alert" className="error">{error}</p>}
   <p className="center"><Link href="/reserve" className="booking-text-link">返回訂位服務</Link></p>
