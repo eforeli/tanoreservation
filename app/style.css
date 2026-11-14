@@ -197,3 +197,11 @@ input[type="date"],input[type="time"]{width:100%;min-width:0;max-width:100%;-web
  .booking-detail-table td[data-label="操作"] .actions{display:flex;justify-content:flex-end;gap:9px}
  .booking-detail-table td[data-label="操作"] .actions button{min-height:42px}
 }
+
+/* Keep the operation label and both buttons on the same horizontal line. */
+@media(max-width:650px){
+ .booking-detail-table td[data-label="操作"]{display:flex;grid-column:1/-1;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid var(--border);margin-top:3px;padding:10px 0 0}
+ .booking-detail-table td[data-label="操作"]::before{display:block;flex:0 0 auto;margin:0;align-self:center;font-size:11px}
+ .booking-detail-table td[data-label="操作"] .actions{display:flex;justify-content:flex-end;align-items:center;gap:8px;margin:0}
+ .booking-detail-table td[data-label="操作"] .actions button{min-height:38px;padding:8px 12px}
+}
