@@ -1,9 +1,7 @@
 name: TANO encrypted daily database backup
 
+# Automated backups are paused by owner's request; manual-only workflow.
 on:
-  schedule:
-    # 03:17 Asia/Taipei (19:17 UTC the previous day)
-    - cron: '17 19 * * *'
   workflow_dispatch:
 
 permissions:
