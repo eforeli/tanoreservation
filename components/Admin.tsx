@@ -2,7 +2,7 @@
 import {useEffect,useState,useCallback} from 'react';
 import {createClient} from '@supabase/supabase-js';
 import {STATUS_LABELS} from '@/lib/constants';
-const supa=()=>createClient(process.env.NEXT_PUBLIC_SUPABASE_URL||'',process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY||'');
+const supa=()=>createClient(process.env.NEXT_PUBLIC_SUPABASE_URL||'',process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY||process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||'');
 const dateToday=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 type R={id:string;confirmation_code:string;guest_name:string;guest_phone:string;party_size:number;starts_at:string;status:string;notes:string;source:string;reservation_tables:{restaurant_tables:{code:string}|null}|null};
 type Block={id:string;start_at:string;end_at:string|null;reason:string;restaurant_tables:{code:string}|null};
