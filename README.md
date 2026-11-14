@@ -1,4 +1,4 @@
-# TANO 訂位系統 — 可部署 MVP
+# 訂位系統 — 可部署 MVP
 
 Next.js 15 / TypeScript / Supabase Postgres + Auth / Vercel。依據 PRD v1.4。
 
