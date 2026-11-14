@@ -8,7 +8,7 @@ const validUuid=(s:string)=>z.uuid().safeParse(s).success;
 const decode=async(req:NextRequest)=>{try{return await req.json();}catch{return null;}};
 const fail=(message:string)=>jsonError(message,400);
 const specialSchema=z.object({business_date:day,is_closed:z.boolean(),notes:z.string().max(500),periods:z.array(z.object({start:z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),end:z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/)})).max(8)}).superRefine((v,ctx)=>{if(!v.is_closed&&v.periods.length===0)ctx.addIssue({code:'custom',message:'請填寫營業時段'});const ordered=[...v.periods].sort((a,b)=>a.start.localeCompare(b.start));ordered.forEach((p,i)=>{if(p.end<=p.start||(i>0&&p.start<ordered[i-1].end))ctx.addIssue({code:'custom',message:'營業時間重疊或不合法'});});});
-const weeklyPeriod=z.object({start:z.string().regex(/^([01]\\d|2[0-3]):[0-5]\\d$/),end:z.string().regex(/^([01]\\d|2[0-3]):[0-5]\\d$/)});
+const weeklyPeriod=z.object({start:z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),end:z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/)});
 const weeklySchema=z.array(z.object({weekday:z.number().int().min(0).max(6),is_closed:z.boolean(),periods:z.array(weeklyPeriod).max(8)})).length(7).superRefine((days,ctx)=>{
  if(new Set(days.map(d=>d.weekday)).size!==7)ctx.addIssue({code:'custom',message:'必須提供週一至週日七天的設定'});
  days.forEach(d=>{
