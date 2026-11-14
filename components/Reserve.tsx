@@ -7,8 +7,8 @@ type Receipt={confirmation_code:string;starts_at:string;party_size:number;guest_
 const strings={
  zh:{
   bookingConfirmed:'訂位成功',bookingCode:'訂位編號',guest:'姓名',persons:'人數',date:'日期',time:'時間',personUnit:' 位',
-  copyTitle:'複製所有訂位資訊',copied:'訂位資訊已複製',copyFailed:'複製失敗，請手動截圖保存',
-  receiptNotice:'請截圖保存此頁。訂位目前不收訂金，若需取消或修改訂位資訊，煩請提早由LINE官方傳訊息通知我們。謝謝！',
+  copyTitle:'複製訂位資料',copied:'訂位資訊已複製',copyFailed:'複製失敗，請手動截圖保存',
+  receiptNotice:'請複製訂位資料，回傳LINE官方，以利餐廳核對訂位！\n若需取消或修改訂位資訊，請提早傳訊息通知我們。',
   heading:'預約 TANO 的一席',tagline:'炭火慢慢逼出肉香，也定下 TANO 的味道。',
   diningDate:'用餐日期',party:'用餐人數',chooseTime:'選擇入席時間',loading:'查詢可訂時段中…',empty:'當日目前沒有可訂時段',
   contactName:'聯絡姓名',phone:'手機號碼',namePlaceholder:'請填寫姓名',phonePlaceholder:'09xxxxxxxx',
@@ -56,15 +56,13 @@ export default function Reserve(){
   return <section className="panel narrow">
    <div className="eyebrow">BOOKING CONFIRMED</div><h1>{t.bookingConfirmed}</h1>
    <div className="receipt">
-    <button type="button" className="receipt-copy" aria-label={t.copyTitle} title={t.copyTitle} onClick={async()=>{try{await navigator.clipboard.writeText(copyText);setCopied(true);}catch{setError(t.copyFailed);}}}>
-     <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>
-    </button>
     <p>{t.bookingCode}</p><p className="receipt-code">{receipt.confirmation_code}</p>
     <p>{t.guest}：{receipt.guest_name}</p><p>{t.persons}：{receipt.party_size}{t.personUnit}</p><p>{t.time}：{dateText} {timeText}</p>
    </div>
    {copied&&<div role="status" className="copy-popup">{t.copied}</div>}
    {error&&<p role="alert" className="error">{error}</p>}
-   <p className="muted">{t.receiptNotice}</p>
+   <p className="muted receipt-notice">{t.receiptNotice}</p>
+   <div className="receipt-copy-container"><button type="button" className="primary receipt-copy-button" onClick={async()=>{try{await navigator.clipboard.writeText(copyText);setCopied(true);}catch{setError(t.copyFailed);}}}>{t.copyTitle}</button></div>
   </section>;
  }
  return <section className="panel narrow">
