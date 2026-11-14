@@ -50,3 +50,22 @@ input[type="date"],input[type="time"]{width:100%;min-width:0;max-width:100%;-web
  .receipt-code{font-size:23px}
 }
 @media(max-width:360px){.range-buttons button{font-size:12px}.grid-table{grid-template-columns:1fr}}
+
+/* V1.3 bilingual header and required field indicators */
+.required-star{color:#c53232;font-size:16px;font-weight:700;line-height:1}
+.language-switch{display:inline-flex;align-items:center;gap:2px;padding:3px;border:1px solid #ffffff69;border-radius:9px;white-space:nowrap}
+.language-switch button{background:transparent;color:#fff;border:0;padding:6px 9px;font-size:12px;line-height:1.2;min-height:30px}
+.language-switch button.active{background:#fff;color:#29221e;border-radius:6px;font-weight:700}
+.language-switch button:hover:not(:disabled){border-color:transparent;background:#ffffff2a}
+.language-switch button.active:hover:not(:disabled){background:#fff}
+.topbar nav{align-items:center}
+@media(max-width:650px){
+ .topbar{align-items:center;justify-content:space-between;row-gap:12px}
+ .topbar nav{display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end}
+ .topbar nav a{white-space:nowrap}
+ .language-switch{flex:0 0 auto}
+}
+@media(max-width:400px){
+ .topbar nav{width:100%;justify-content:space-between;gap:8px}
+ .topbar nav a{font-size:12px}
+}
