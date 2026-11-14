@@ -110,7 +110,7 @@ export default function Reserve({edit=false}:{edit?:boolean}){
   </section>;
  }
  return <section className="panel narrow">
-  <div className="eyebrow">RESERVATION</div><h1>{edit?'修改訂位':t.heading}</h1><p className="muted">{t.tagline}</p>
+  <div className="eyebrow">RESERVATION</div><h1>{edit?'修改訂位':t.heading}</h1>
   <form onSubmit={submit}>
    <div className="two">
     <label className="date-field">{t.diningDate}<input type="date" required min={taiwanToday()} value={date} onChange={e=>setDate(e.target.value)}/></label>
