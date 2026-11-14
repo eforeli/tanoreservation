@@ -31,6 +31,8 @@ jobs:
       # would fail until a lockfile is committed.
       - name: Install
         run: npm install --no-audit --no-fund
+      - name: Validate backup shell script
+        run: bash -n scripts/backup-supabase.sh
       - name: Type check
         run: npm run typecheck
       - name: Unit tests
