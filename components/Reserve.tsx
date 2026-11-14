@@ -49,16 +49,18 @@ export default function Reserve(){
   catch{setError(t.networkError);}finally{setBusy(false);}
  }
  if(receipt){
-  const when=new Date(receipt.starts_at),locale=language==='zh'?'zh-TW':'en-US';
-  const dateText=new Intl.DateTimeFormat(locale,{timeZone:'Asia/Taipei',year:'numeric',month:'long',day:'numeric',weekday:'long'}).format(when);
+  const when=new Date(receipt.starts_at);
+  const calendarDate=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).format(when).replace(/-/g,'/');
+  const weekday=new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Taipei',weekday:'short'}).format(when);
+  const dateText=`${calendarDate} (${weekday}.)`;
   const timeText=new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Taipei',hour:'2-digit',minute:'2-digit',hour12:false}).format(when);
-  const copyText=[`${t.bookingCode}：${receipt.confirmation_code}`,`${t.guest}：${receipt.guest_name}`,`${t.persons}：${receipt.party_size}${t.personUnit}`,`${t.date}：${dateText}`,`${t.time}：${timeText}`,`${t.phone}：${receipt.guest_phone}`,'',t.changeNotice].join('\n');
+  const copyText=[`${t.bookingCode}：${receipt.confirmation_code}`,`${t.guest}：${receipt.guest_name}`,`${t.persons}：${receipt.party_size}`,`${t.date}：${dateText}`,`${t.time}：${timeText}`,`${t.phone}：${receipt.guest_phone}`,'',t.changeNotice].join('\n');
   return <section className="panel narrow">
    <div className="eyebrow">BOOKING CONFIRMED</div><h1>{t.bookingConfirmed}</h1>
    <div className="receipt">
     <p>{t.bookingCode}：{receipt.confirmation_code}</p>
     <p>{t.guest}：{receipt.guest_name}</p>
-    <p>{t.persons}：{receipt.party_size}{t.personUnit}</p>
+    <p>{t.persons}：{receipt.party_size}</p>
     <p>{t.date}：{dateText}</p>
     <p>{t.time}：{timeText}</p>
     <p>{t.phone}：{receipt.guest_phone}</p>
@@ -67,7 +69,7 @@ export default function Reserve(){
    {copied&&<div role="status" className="copy-popup">{t.copied}</div>}
    {error&&<p role="alert" className="error">{error}</p>}
    <p className="receipt-notice receipt-highlight">煩請<strong>複製</strong>訂位資料，<strong>回傳至官方LINE</strong>，以利餐廳核對！</p>
-   <div className="receipt-copy-container"><button type="button" className="primary receipt-copy-button" onClick={async()=>{try{await navigator.clipboard.writeText(copyText);setCopied(true);}catch{setError(t.copyFailed);}}}>{t.copyTitle}</button></div>
+   <div className="receipt-copy-container"><button type="button" className="primary receipt-copy-button" onClick={async()=>{try{await navigator.clipboard.writeText(copyText);setCopied(true);}catch{setError(t.copyFailed);}}}><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg><span>{t.copyTitle}</span></button></div>
   </section>;
  }
  return <section className="panel narrow">
