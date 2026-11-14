@@ -8,7 +8,7 @@ const strings={
  zh:{
   bookingConfirmed:'訂位成功',bookingCode:'訂位編號',guest:'姓名',persons:'人數',date:'日期',time:'時間',personUnit:' 位',
   copyTitle:'複製訂位資料',copied:'訂位資訊已複製',copyFailed:'複製失敗，請手動截圖保存',
-  receiptNotice:'煩請複製訂位資料，回傳至官方LINE，以利餐廳核對！',changeNotice:'＊若需取消或修改訂位資訊，請提早Line通知我們。',
+  receiptNotice:'請複製訂位資料，貼到官方LINE，餐廳將核對確認。',changeNotice:'＊若需取消或修改訂位資訊，請提早Line通知我們。',
   heading:'預約 TANO 的一席',tagline:'炭火慢慢逼出肉香，也定下 TANO 的味道。',
   diningDate:'用餐日期',party:'用餐人數',chooseTime:'選擇入席時間',loading:'查詢可訂時段中…',empty:'當日目前沒有可訂時段',
   contactName:'聯絡姓名',phone:'手機號碼',namePlaceholder:'請填寫姓名',phonePlaceholder:'09xxxxxxxx',
@@ -68,7 +68,7 @@ export default function Reserve(){
    </div>
    {copied&&<div role="status" className="copy-popup">{t.copied}</div>}
    {error&&<p role="alert" className="error">{error}</p>}
-   <p className="receipt-notice receipt-highlight">煩請<strong>複製</strong>訂位資料，<strong>回傳至官方LINE</strong>，以利餐廳核對！</p>
+   <p className="receipt-notice receipt-highlight">請<strong>複製</strong>訂位資料，貼到<strong>官方LINE</strong>，餐廳將核對確認。</p>
    <div className="receipt-copy-container"><button type="button" className="primary receipt-copy-button" onClick={async()=>{try{await navigator.clipboard.writeText(copyText);setCopied(true);}catch{setError(t.copyFailed);}}}><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg><span>{t.copyTitle}</span></button></div>
   </section>;
  }
