@@ -201,7 +201,7 @@ export default function Admin(){
     <div className="weekly-hours-list">{weekdays.map(({id,label})=>{const day=weeklyHours.find(d=>d.weekday===id);if(!day)return null;return <section key={id} className="weekly-day">
      <div className="weekly-day-header">
       <h3>{t(label)}</h3>
-      <label className="weekly-day-state">當日狀態
+      <label className="weekly-day-state">{t("當日狀態")}
        <select aria-label={t(label)+t(t("營業狀態"))} value={day.is_closed?'closed':'open'} onChange={e=>updateWeeklyDay(id,{is_closed:e.target.value==='closed',periods:e.target.value==='closed'?day.periods:day.periods.length?day.periods:[{start:'17:00',end:'21:00'}]})}>
         <option value="open">{t("營業")}</option><option value="closed">{t("公休")}</option>
        </select>
