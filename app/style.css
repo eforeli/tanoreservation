@@ -74,6 +74,10 @@ input[type="date"],input[type="time"]{width:100%;min-width:0;max-width:100%;-web
 /* Compact booking confirmation and highlighted LINE handoff */
 .receipt p{font-size:16px;font-weight:400;line-height:1.6;margin:0 0 12px;overflow-wrap:anywhere}
 .receipt p:last-child{margin-bottom:0}
-.receipt-highlight{color:#b42318;font-weight:700;line-height:1.6}
+.receipt-highlight{color:var(--ink);font-weight:400;line-height:1.7}
+.receipt-highlight strong{font-weight:700}
 .receipt-change-notice{font-size:14px;line-height:1.7;margin:10px 0;color:var(--ink)}
 .reservation-terms{white-space:pre-line}
+
+/* Keep cancellation notice directly under the phone number, inside the booking details. */
+.receipt .receipt-change-notice{font-size:14px;line-height:1.7;margin:12px 0 0;font-weight:400}
