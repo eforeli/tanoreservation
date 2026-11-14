@@ -57,7 +57,7 @@ export default function Reserve({edit=false}:{edit?:boolean}){
  useEffect(()=>{if(!ready)return;let live=true;setTime('');setError('');setLoading(true);fetch(edit?
   `/api/customer-booking?mode=slots&date=${date}&partySize=${party}`:
   `/api/availability?date=${date}&partySize=${party}`,{cache:'no-store'})
-  .then(r=>r.json()).then(x=>{if(live){setSlots(x.slots||[]);setDayState(x.state||'unavailable');if(x.error)setError(language==='zh'?x.error:t.notComplete);
+  .then(async r=>{const v=await r.json();if(!r.ok)throw Error(v.error||t.connectionFailed);return v;}).then(x=>{if(live){setSlots(x.slots||[]);setDayState(x.state||'unavailable');if(x.error)setError(language==='zh'?x.error:t.notComplete);
    if(edit&&original){
     const when=new Date(original.starts_at);
     const originalDay=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).format(when);
@@ -68,7 +68,7 @@ export default function Reserve({edit=false}:{edit?:boolean}){
     }
    }
   }})
-  .catch(()=>{if(live)setError(t.connectionFailed);}).finally(()=>{if(live)setLoading(false);});return()=>{live=false;};},[date,party,language,t.connectionFailed,t.notComplete,edit,ready,original]);
+  .catch(e=>{if(live){setSlots([]);setError(e instanceof Error?e.message:t.connectionFailed);}}).finally(()=>{if(live)setLoading(false);});return()=>{live=false;};},[date,party,language,t.connectionFailed,t.notComplete,edit,ready,original]);
  useEffect(()=>{if(!copied)return;const timer=setTimeout(()=>setCopied(false),2000);return()=>clearTimeout(timer);},[copied]);
  async function submit(e:React.FormEvent){e.preventDefault();if(!time||busy)return;
   if(!/^09\d{8}$/.test(phone)){setError(t.phoneFormat);return;}
@@ -90,7 +90,7 @@ export default function Reserve({edit=false}:{edit?:boolean}){
   const weekday=new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Taipei',weekday:'short'}).format(when);
   const dateText=`${calendarDate} (${weekday}.)`;
   const timeText=new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Taipei',hour:'2-digit',minute:'2-digit',hour12:false}).format(when);
-  const copyText=[`${t.bookingCode}：${receipt.confirmation_code}`,`${t.guest}：${receipt.guest_name}`,`${t.persons}：${receipt.party_size}`,`${t.date}：${dateText}`,`${t.time}：${timeText}`,`${t.phone}：${receipt.guest_phone}`,'',t.changeNotice].join('\n');
+  const copyText=[`${t.bookingCode}：${receipt.confirmation_code}`,`${t.guest}：${receipt.guest_name}`,`${t.persons}：${receipt.party_size}`,`${t.date}：${dateText}`,`${t.time}：${timeText}`,`${t.phone}：${receipt.guest_phone}`,'',edit?'訂位資訊已更新':t.changeNotice].join('\n');
   return <section className="panel narrow">
    <div className="eyebrow">BOOKING CONFIRMED</div><h1>{edit?'訂位修改成功！':t.bookingConfirmed}</h1>
    <div className="receipt">
@@ -100,6 +100,7 @@ export default function Reserve({edit=false}:{edit?:boolean}){
     <p>{t.date}：{dateText}</p>
     <p>{t.time}：{timeText}</p>
     <p>{t.phone}：{receipt.guest_phone}</p>
+    {edit&&<p>備註：{notes||'無'}</p>}
     <p className="receipt-change-notice">{edit?'您的訂位資訊已成功更新，請以本頁最新資訊為準。':t.changeNotice}</p>
    </div>
    {copied&&<div role="status" className="copy-popup">{t.copied}</div>}
