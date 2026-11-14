@@ -164,3 +164,25 @@ input[type="date"],input[type="time"]{width:100%;min-width:0;max-width:100%;-web
  .special-period{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
  .special-period button{grid-column:1/-1;justify-self:end;margin:0 0 13px}
 }
+
+/* Staff entry: subtle single dash, visually borderless but keyboard-accessible. */
+.topbar{flex-wrap:nowrap}
+.topbar .brand{min-width:0}
+.topbar .site-nav{flex:0 0 auto;margin-left:auto;width:auto;display:flex;align-items:center;justify-content:flex-end}
+.site-menu-toggle{width:34px;height:36px;min-width:34px;min-height:36px;border:0!important;box-shadow:none!important;border-radius:0;background:transparent!important;padding:6px;color:#ffffffa8}
+.site-menu-toggle:hover:not(:disabled){color:#fff;background:transparent!important;border:0!important}
+.site-menu-toggle:focus-visible{outline:2px solid white;outline-offset:2px;border-radius:3px}
+@media(max-width:650px){
+ .topbar{flex-wrap:nowrap;align-items:center;justify-content:space-between}
+ .topbar .site-nav{width:auto!important;flex:0 0 auto;margin-left:auto;justify-content:flex-end}
+ .topbar .site-menu{flex:0 0 auto}
+}
+@media(max-width:400px){
+ .topbar{flex-wrap:nowrap;gap:6px}
+ .topbar .site-nav{width:auto!important;flex:0 0 auto;margin-left:auto}
+ .topbar .brand{font-size:22px}
+ .topbar .brand small{font-size:8px;letter-spacing:.12em}
+}
+/* Special leave: clear all-day toggle with regular time inputs for partial leave. */
+.special-all-day{display:flex;align-items:center;gap:10px;margin:2px 0 20px;cursor:pointer;font-size:15px}
+.special-all-day input[type=checkbox]{display:inline-block;width:19px;height:19px;flex:0 0 19px;margin:0;accent-color:var(--accent);cursor:pointer}
