@@ -8,6 +8,12 @@ export async function POST(req:NextRequest){
  const b=parsed.data;
  if(!/^09\d{8}$/.test(b.phone))return jsonError('手機號碼須為 09 開頭的 10 位數字');
  const {data,error}=await rpc('create_booking',{p_date:b.date,p_time:b.time,p_party_size:b.partySize,p_name:b.name,p_phone:b.phone,p_notes:b.notes,p_source:'web',p_key:b.idempotencyKey,p_actor:null});
- if(error){console.error('booking',error.code,error.message);return jsonError(toPublicError(error.message),error.message.includes('unavailable')?409:400);}
+ if(error){
+  if(error.message.includes('duplicate phone booking day')){
+   return NextResponse.json({error:'這隻手機在當天已有訂位，請直接修改訂位資訊，避免重複訂位',code:'DUPLICATE_PHONE_DAY'},{status:409,headers:{'Cache-Control':'no-store'}});
+  }
+  console.error('booking',error.code,error.message);
+  return jsonError(toPublicError(error.message),error.message.includes('unavailable')?409:400);
+ }
  return NextResponse.json({reservation:data},{status:201});
 }

@@ -1,6 +1,7 @@
 'use client';
 import {useEffect,useState} from 'react';
 import {useLanguage} from '@/components/SiteShell';
+import Link from 'next/link';
 
 function taiwanToday(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());}
 type Receipt={confirmation_code:string;starts_at:string;party_size:number;guest_name:string;guest_phone:string};
@@ -35,7 +36,7 @@ const strings={
 export default function Reserve({edit=false}:{edit?:boolean}){
  const {language}=useLanguage();const t=strings[language];
  const [date,setDate]=useState(taiwanToday),[party,setParty]=useState(2),[slots,setSlots]=useState<string[]>([]),[time,setTime]=useState(''),[dayState,setDayState]=useState<'closed'|'full'|'unavailable'|'available'>('unavailable'),[name,setName]=useState(''),[phone,setPhone]=useState(''),[notes,setNotes]=useState('');
- const [busy,setBusy]=useState(false),[loading,setLoading]=useState(false),[error,setError]=useState(''),[receipt,setReceipt]=useState<Receipt|null>(null);
+ const [busy,setBusy]=useState(false),[loading,setLoading]=useState(false),[error,setError]=useState(''),[receipt,setReceipt]=useState<Receipt|null>(null),[duplicateDialog,setDuplicateDialog]=useState(false);
  const [key]=useState(()=>crypto.randomUUID()),[copied,setCopied]=useState(false);
  const [original,setOriginal]=useState<ManagedBooking|null>(null),[initializing,setInitializing]=useState(edit);
  const [ready,setReady]=useState(!edit),[refreshSlots,setRefreshSlots]=useState(0);
@@ -77,7 +78,15 @@ export default function Reserve({edit=false}:{edit?:boolean}){
   try{
    const body=edit?{action:'update',date,time,partySize:party,notes,expectedUpdatedAt:original?.updated_at}:{date,time,partySize:party,name,phone,notes,idempotencyKey:key,source:'web'};
    const r=await fetch(edit?'/api/customer-booking':'/api/reservations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-   const v=await r.json();if(!r.ok){setError(language==='zh'?(v.error||t.notComplete):t.notComplete);if(edit&&r.status===409){setRefreshSlots(n=>n+1);}return;}
+   const v=await r.json();if(!r.ok){
+    if(!edit&&r.status===409&&v.code==='DUPLICATE_PHONE_DAY'){
+     setDuplicateDialog(true);
+     return;
+    }
+    setError(language==='zh'?(v.error||t.notComplete):t.notComplete);
+    if(edit&&r.status===409){setRefreshSlots(n=>n+1);}
+    return;
+   }
    setReceipt({...v.reservation,guest_phone:phone});
   }
   catch{setError(t.networkError);}finally{setBusy(false);}
@@ -135,5 +144,13 @@ export default function Reserve({edit=false}:{edit?:boolean}){
   </form>
   <p className="muted center">{t.largeParty}</p>
   {edit&&<p className="center"><a href="/reserve/manage">返回原訂位</a></p>}
+  {!edit&&duplicateDialog&&<div className="booking-modal-backdrop" role="presentation" onClick={()=>setDuplicateDialog(false)}>
+   <div className="booking-modal duplicate-booking-modal" role="dialog" aria-modal="true" aria-labelledby="duplicate-booking-title" onClick={e=>e.stopPropagation()}>
+    <button type="button" aria-label="關閉提示" className="duplicate-booking-close" onClick={()=>setDuplicateDialog(false)}>×</button>
+    <h2 id="duplicate-booking-title">已有當日訂位</h2>
+    <p>這隻手機在當天已有訂位，請直接修改訂位資訊，避免重複訂位</p>
+    <Link href="/reserve/manage" className="booking-link-primary">修改訂位資訊</Link>
+   </div>
+  </div>}
  </section>;
 }
