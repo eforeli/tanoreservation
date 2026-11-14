@@ -74,7 +74,7 @@ end $$;
 -- Customer edits are allowed until the original arrival time, including within
 -- the public new-booking minimum advance window. Keep all other slot constraints.
 create or replace function public.customer_valid_edit_slot(p_date date,p_clock time,p_party int)
-returns boolean language plpgsql volatile set search_path=public as $
+returns boolean language plpgsql volatile set search_path=public as $$
 declare s public.booking_settings%rowtype;segments jsonb;seg jsonb;sp public.special_business_hours%rowtype;
  o time;c time;ts timestamptz;cl jsonb;
 begin
