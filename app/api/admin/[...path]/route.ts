@@ -40,6 +40,8 @@ export async function GET(req:NextRequest,{params}:Context){
   if(!Number.isInteger(page)||page<1||page>10000||code.length>32||phone.length>24||!['all','customer','admin'].includes(actor)
    ||(dateFrom&&!day.safeParse(dateFrom).success)||(dateTo&&!day.safeParse(dateTo).success)
    ||(dateFrom&&dateTo&&dateFrom>dateTo))return fail('篩選條件無效');
+  const {error:pruneError}=await rpc('prune_reservation_change_logs',{});
+  if(pruneError){console.error('reservation log prune',pruneError.code);return jsonError('訂位 Log 維護失敗',500);}
   let query=s.from('reservation_change_log').select('*',{count:'exact'}).order('changed_at',{ascending:false}).order('id',{ascending:false});
   if(dateFrom)query=query.gte('changed_at',new Date(dateFrom+'T00:00:00+08:00').toISOString());
   if(dateTo)query=query.lt('changed_at',new Date(new Date(dateTo+'T00:00:00+08:00').getTime()+86400000).toISOString());
