@@ -81,3 +81,8 @@ input[type="date"],input[type="time"]{width:100%;min-width:0;max-width:100%;-web
 
 /* Keep cancellation notice directly under the phone number, inside the booking details. */
 .receipt .receipt-change-notice{font-size:14px;line-height:1.7;margin:12px 0 0;font-weight:400}
+
+/* Receipt verification prompt centered; copy icon positioned before CTA text. */
+.receipt-notice.receipt-highlight{text-align:center}
+.receipt-copy-button{display:inline-flex;align-items:center;justify-content:center;gap:9px}
+.receipt-copy-button svg{flex:0 0 18px}
