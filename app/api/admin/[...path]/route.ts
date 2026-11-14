@@ -13,7 +13,8 @@ export async function GET(req:NextRequest,{params}:Context){
  const p=(await params).path;const s=db();
  if(p[0]==='reservations'){
   const date=req.nextUrl.searchParams.get('date')||'';if(!day.safeParse(date).success)return fail('日期錯誤');
-  const begin=`${date}T00:00:00+08:00`,end=new Date(new Date(begin).getTime()+86400000).toISOString();
+  const days=Number(req.nextUrl.searchParams.get('days')||1);if(![1,7,30].includes(days))return fail('查詢天數無效');
+  const begin=`${date}T00:00:00+08:00`,end=new Date(new Date(begin).getTime()+days*86400000).toISOString();
   const {data,error}=await s.from('reservations').select('*,reservation_tables(table_id,restaurant_tables(code))').gte('starts_at',begin).lt('starts_at',end).order('starts_at');
   if(error)return jsonError(error.message,500);return NextResponse.json({items:data});
  }
