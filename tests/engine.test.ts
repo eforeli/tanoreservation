@@ -1,0 +1,14 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {chooseTable,chairsFeasible,overlaps,Table,Occupancy,Settings} from '../lib/engine';
+const tables:Table[]=[{code:'A1',base_capacity:2,max_capacity:3},{code:'A2',base_capacity:2,max_capacity:2},{code:'A3',base_capacity:2,max_capacity:3},{code:'A4',base_capacity:4,max_capacity:5},{code:'A5',base_capacity:4,max_capacity:5}];
+const settings:Settings={dining_minutes:90,buffer_minutes:20,extra_chairs_total:2,max_arrivals_per_slot:2,slot_interval_minutes:30};
+const date='2026-11-17';const iso=(time:string)=>`${date}T${time}:00+08:00`;
+const row=(table_code:string,start:string,party_size:number):Occupancy=>({table_code,party_size,starts_at:iso(start),dining_ends_at:new Date(Date.parse(iso(start))+90*60000).toISOString(),table_released_at:new Date(Date.parse(iso(start))+110*60000).toISOString()});
+test('half-open ranges allow adjacent non-overlaps',()=>{assert.equal(overlaps(0,110,110,220),false);assert.equal(overlaps(0,110,90,200),true);});
+test('five guests may use A4 + chair',()=>assert.equal(chooseTable(5,iso('17:00'),[],[],tables,settings),'A4'));
+test('two extra chairs used, third 5 person table not allowed',()=>{const rows=[row('A4','17:00',5),row('A1','17:30',3)];assert.equal(chooseTable(5,iso('18:00'),rows,[],tables,{...settings,max_arrivals_per_slot:9}),null);});
+test('chair interval peak, not just starting instant',()=>{const rows=[row('A4','17:30',5),row('A1','18:00',3)];assert.equal(chairsFeasible(Date.parse(iso('17:00')),Date.parse(iso('18:30')),1,rows,tables,2),false);});
+test('same table at 18:30 not reusable, at 19:00 reusable',()=>{const rows=[row('A4','17:00',5)];assert.equal(chooseTable(5,iso('18:30'),rows,[],[tables[3]],settings),null);assert.equal(chooseTable(5,iso('19:00'),rows,[],[tables[3]],settings),'A4');});
+test('blocked table not assigned',()=>assert.equal(chooseTable(2,iso('18:00'),[],[{table_code:'A2',start_at:iso('17:00'),end_at:iso('20:00')}],tables,settings),'A1'));
+test('closed-end block release becomes available',()=>assert.equal(chooseTable(2,iso('20:00'),[],[{table_code:'A2',start_at:iso('17:00'),end_at:iso('20:00')}],tables,settings),'A2'));
+test('two simultaneous starts max, third rejected',()=>assert.equal(chooseTable(2,iso('17:00'),[row('A2','17:00',2),row('A1','17:00',2)],[],tables,settings),null));
