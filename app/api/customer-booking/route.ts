@@ -2,7 +2,7 @@ import {NextRequest,NextResponse} from 'next/server';
 import {randomBytes,createHash} from 'node:crypto';
 import {z} from 'zod';
 import {booking} from '@/lib/schema';
-import {rpc} from '@/lib/server';
+import {rpc,db} from '@/lib/server';
 
 export const dynamic='force-dynamic';
 const COOKIE='tano_customer_booking';
@@ -40,6 +40,16 @@ export async function POST(req:NextRequest){
  if(Number(req.headers.get('content-length')||0)>10000)return fail('資料過長',413);
  let input:unknown;try{input=await req.json();}catch{return fail('資料格式錯誤',400);}
  const {action,...raw}=input&&typeof input==='object'?input as Record<string,unknown>:{};
+ if(action==='reset'){
+  const previousHash=session(req);
+  if(previousHash){
+   const {error}=await db().from('customer_booking_sessions').delete().eq('token_hash',previousHash);
+   if(error){console.error('customer reset',error.code);return fail('無法重設查詢狀態',503);}
+  }
+  const response=cookieResponse({success:true});
+  response.cookies.delete(COOKIE);
+  return response;
+ }
  if(action==='verify'){
   const parsed=credentials.safeParse(raw);if(!parsed.success)return fail('請輸入正確的訂單編號與手機號碼',400);
   const token=randomBytes(32).toString('hex');
