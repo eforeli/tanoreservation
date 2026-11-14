@@ -6,7 +6,7 @@ function taiwanToday(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Ta
 type Receipt={confirmation_code:string;starts_at:string;party_size:number;guest_name:string;guest_phone:string};
 const strings={
  zh:{
-  bookingConfirmed:'訂位成功',bookingCode:'訂位編號',guest:'姓名',persons:'人數',date:'日期',time:'時間',phone:'手機號碼',personUnit:' 位',
+  bookingConfirmed:'訂位成功',bookingCode:'訂位編號',guest:'姓名',persons:'人數',date:'日期',time:'時間',personUnit:' 位',
   copyTitle:'複製訂位資料',copied:'訂位資訊已複製',copyFailed:'複製失敗，請手動截圖保存',
   receiptNotice:'複製訂位資料，回傳LINE官方',changeNotice:'＊若需取消或修改訂位資訊，請提早Line通知我們。',
   heading:'預約 TANO 的一席',tagline:'炭火慢慢逼出肉香，也定下 TANO 的味道。',
@@ -18,7 +18,7 @@ const strings={
   connectionFailed:'連線失敗，請重新整理',notComplete:'訂位未完成',networkError:'網路錯誤，請確認訂位是否成立再重試',
  },
  en:{
-  bookingConfirmed:'Reservation Confirmed',bookingCode:'Reservation Code',guest:'Name',persons:'Party Size',date:'Date',time:'Time',phone:'Mobile Number',personUnit:' guests',
+  bookingConfirmed:'Reservation Confirmed',bookingCode:'Reservation Code',guest:'Name',persons:'Party Size',date:'Date',time:'Time',personUnit:' guests',
   copyTitle:'Copy all reservation details',copied:'Reservation details copied',copyFailed:'Unable to copy. Please save a screenshot instead.',
   receiptNotice:'Copy your reservation details and send them to our official LINE account',changeNotice:'*To cancel or change your reservation, please notify us early via LINE.',
   heading:'Reserve a Table at TANO',tagline:'Slowly grilled over charcoal, crafted with the unmistakable taste of TANO.',
