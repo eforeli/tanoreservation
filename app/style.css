@@ -86,3 +86,21 @@ input[type="date"],input[type="time"]{width:100%;min-width:0;max-width:100%;-web
 .receipt-notice.receipt-highlight{text-align:center}
 .receipt-copy-button{display:inline-flex;align-items:center;justify-content:center;gap:9px}
 .receipt-copy-button svg{flex:0 0 18px}
+
+/* Staff table blocks: focused editor screen and responsive record list */
+.block-table-header h2{margin:0}
+.block-list-section{margin-top:30px}
+.block-editor-screen{max-width:660px}
+.block-back{border:0;background:transparent;padding:7px 0;margin-bottom:14px;color:var(--accent);font-weight:600}
+.block-mode{display:flex;gap:9px;margin:9px 0 20px;flex-wrap:wrap}
+.block-mode button{flex:1 1 160px;min-height:44px}
+.block-mode button.selected{background:#342a25;border-color:#342a25;color:white}
+.block-editor-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
+.block-editor-actions button{min-height:44px;min-width:100px}
+@media(max-width:650px){
+ .block-table-header{align-items:stretch!important}
+ .block-table-header h2{font-size:20px;line-height:1.45}
+ .block-table-header>button{width:100%}
+ .block-editor-actions{display:grid;grid-template-columns:1fr 1fr}
+ .block-editor-actions button{min-width:0}
+}
