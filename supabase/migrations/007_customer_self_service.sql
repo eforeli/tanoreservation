@@ -71,6 +71,33 @@ begin
  return public.customer_booking_json(r);
 end $$;
 
+-- Customer edits are allowed until the original arrival time, including within
+-- the public new-booking minimum advance window. Keep all other slot constraints.
+create or replace function public.customer_valid_edit_slot(p_date date,p_clock time,p_party int)
+returns boolean language plpgsql stable set search_path=public as $
+declare s public.booking_settings%rowtype;segments jsonb;seg jsonb;sp public.special_business_hours%rowtype;
+ o time;c time;ts timestamptz;cl jsonb;
+begin
+ select * into s from public.booking_settings where id=1;
+ if s.id is null or p_party<1 or p_party>s.max_online_party_size then return false;end if;
+ if p_date<(now() at time zone 'Asia/Taipei')::date or p_date>(now() at time zone 'Asia/Taipei')::date+s.booking_window_days then return false;end if;
+ ts:=(p_date::text||' '||p_clock::text)::timestamp at time zone 'Asia/Taipei';
+ if ts<=now() then return false;end if;
+ segments:=public.booking_day_periods(p_date);
+ select * into sp from public.special_business_hours where business_date=p_date;
+ if found and coalesce(jsonb_array_length(sp.closure_periods),0)>0 then
+  for cl in select value from jsonb_array_elements(sp.closure_periods) loop
+   if p_clock<(cl->>'end')::time and p_clock+make_interval(mins=>s.dining_minutes)>(cl->>'start')::time then return false;end if;
+  end loop;
+ end if;
+ for seg in select value from jsonb_array_elements(segments) loop
+  o:=(seg->>'start')::time;c:=(seg->>'end')::time;
+  if p_clock>=o and p_clock<=c-make_interval(mins=>s.last_seating_offset_minutes)
+   and mod((extract(epoch from (p_clock-o))/60)::int,s.slot_interval_minutes)=0 then return true;end if;
+ end loop;
+ return false;
+end $;
+
 create or replace function public.customer_available_slots(p_token_hash text,p_date date,p_party_size int)
 returns text[] language plpgsql security definer set search_path=public as $$
 declare r public.reservations%rowtype;s public.booking_settings%rowtype;
@@ -85,7 +112,7 @@ begin
  for seg in select value from jsonb_array_elements(public.booking_day_periods(p_date)) loop
   o:=(seg->>'start')::time;c:=(seg->>'end')::time;cur:=o;
   while cur<=c loop
-   if public.booking_valid_slot(p_date,cur,p_party_size)
+   if public.customer_valid_edit_slot(p_date,cur,p_party_size)
     and public.find_table_for_booking(
       (p_date::text||' '||cur::text)::timestamp at time zone 'Asia/Taipei',p_party_size,r.id
     ) is not null then out_slots:=array_append(out_slots,to_char(cur,'HH24:MI'));end if;
@@ -124,7 +151,7 @@ begin
  if new_start<=now() then raise exception 'not eligible';end if;
  changed_slot := new_start<>old.starts_at or p_party<>old.party_size;
  if changed_slot then
-  if not public.booking_valid_slot(p_date,p_time::time,p_party) then raise exception 'not eligible';end if;
+  if not public.customer_valid_edit_slot(p_date,p_time::time,p_party) then raise exception 'not eligible';end if;
   target:=public.find_table_for_booking(new_start,p_party,old.id);
   if target is null then raise exception 'unavailable';end if;
  end if;
@@ -168,6 +195,8 @@ begin
  return public.customer_booking_json(r);
 end $$;
 
+revoke execute on function public.customer_valid_edit_slot(date,time,int) from public,anon,authenticated;
+grant execute on function public.customer_valid_edit_slot(date,time,int) to service_role;
 revoke execute on function public.customer_booking_json(public.reservations) from public,anon,authenticated;
 revoke execute on function public.customer_verify_booking(text,text,text,text) from public,anon,authenticated;
 revoke execute on function public.customer_get_booking(text) from public,anon,authenticated;
