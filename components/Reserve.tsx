@@ -38,7 +38,7 @@ export default function Reserve({edit=false}:{edit?:boolean}){
  const [busy,setBusy]=useState(false),[loading,setLoading]=useState(false),[error,setError]=useState(''),[receipt,setReceipt]=useState<Receipt|null>(null);
  const [key]=useState(()=>crypto.randomUUID()),[copied,setCopied]=useState(false);
  const [original,setOriginal]=useState<ManagedBooking|null>(null),[initializing,setInitializing]=useState(edit);
- const [ready,setReady]=useState(!edit);
+ const [ready,setReady]=useState(!edit),[refreshSlots,setRefreshSlots]=useState(0);
  useEffect(()=>{if(!edit)return;let active=true;
   fetch('/api/customer-booking',{cache:'no-store'}).then(async r=>{
    const v=await r.json();if(!r.ok)throw Error(v.error||'請先驗證訂位');
@@ -68,7 +68,7 @@ export default function Reserve({edit=false}:{edit?:boolean}){
     }
    }
   }})
-  .catch(e=>{if(live){setSlots([]);setError(e instanceof Error?e.message:t.connectionFailed);}}).finally(()=>{if(live)setLoading(false);});return()=>{live=false;};},[date,party,language,t.connectionFailed,t.notComplete,edit,ready,original]);
+  .catch(e=>{if(live){setSlots([]);setError(e instanceof Error?e.message:t.connectionFailed);}}).finally(()=>{if(live)setLoading(false);});return()=>{live=false;};},[date,party,language,t.connectionFailed,t.notComplete,edit,ready,original,refreshSlots]);
  useEffect(()=>{if(!copied)return;const timer=setTimeout(()=>setCopied(false),2000);return()=>clearTimeout(timer);},[copied]);
  async function submit(e:React.FormEvent){e.preventDefault();if(!time||busy)return;
   if(!/^09\d{8}$/.test(phone)){setError(t.phoneFormat);return;}
@@ -77,7 +77,7 @@ export default function Reserve({edit=false}:{edit?:boolean}){
   try{
    const body=edit?{action:'update',date,time,partySize:party,name,phone,notes,expectedUpdatedAt:original?.updated_at}:{date,time,partySize:party,name,phone,notes,idempotencyKey:key,source:'web'};
    const r=await fetch(edit?'/api/customer-booking':'/api/reservations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-   const v=await r.json();if(!r.ok){setError(language==='zh'?(v.error||t.notComplete):t.notComplete);return;}
+   const v=await r.json();if(!r.ok){setError(language==='zh'?(v.error||t.notComplete):t.notComplete);if(edit&&r.status===409){setRefreshSlots(n=>n+1);}return;}
    setReceipt({...v.reservation,guest_phone:phone});
   }
   catch{setError(t.networkError);}finally{setBusy(false);}
