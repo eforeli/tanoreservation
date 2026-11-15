@@ -20,22 +20,22 @@ function normalizeWeeklyHours(records:WeeklyRecord[]):WeeklyDay[]{
  });
 }
 function SeatingEditor({times,firstStart,onChange,t}:{times:string[];firstStart:string;onChange:(times:string[])=>void;t:(text:string)=>string}){
- return <fieldset>
-  <legend>{t('訂位方式')}</legend>
-  <select aria-label={t('訂位方式')} value={times.length?'fixed':'general'}
+ return <div className="seating-editor">
+  <label>{t('訂位方式')}
+  <select value={times.length?'fixed':'general'}
    onChange={e=>onChange(e.target.value==='fixed'?[firstStart]:[])}>
    <option value="general">{t('一般訂位')}</option>
    <option value="fixed">{t('固定入席')}</option>
-  </select>
+  </select></label>
   {times.length>0&&<>
-   {times.map((time,index)=><div className="weekly-period" key={index}>
+   {times.map((time,index)=><div className="seating-time" key={index}>
     <label>{t('入席時間')} {index+1}<input type="time" required value={time}
      onChange={e=>onChange(times.map((value,i)=>i===index?e.target.value:value))}/></label>
-    <button type="button" disabled={times.length===1} onClick={()=>onChange(times.filter((_,i)=>i!==index))}>{t('移除')}</button>
+    {times.length>1&&<button type="button" aria-label={t('移除')+' '+t('入席時間')+' '+(index+1)} onClick={()=>onChange(times.filter((_,i)=>i!==index))}>{t('移除')}</button>}
    </div>)}
    <button type="button" disabled={times.length>=24} onClick={()=>onChange([...times,''])}>{t('新增入席時間')}</button>
   </>}
- </fieldset>;
+ </div>;
 }
 type Settings={dining_minutes:number;buffer_minutes:number;slot_interval_minutes:number;booking_window_days:number;min_advance_minutes:number;extra_chairs_total:number;max_arrivals_per_slot:number;max_online_party_size:number;last_seating_offset_minutes:number};
 const fields:(keyof Settings)[]=['dining_minutes','buffer_minutes','slot_interval_minutes','booking_window_days','min_advance_minutes','extra_chairs_total','max_arrivals_per_slot','max_online_party_size','last_seating_offset_minutes'];
@@ -135,13 +135,14 @@ export default function Admin(){
      </div>)}
     <button type="button" disabled={special.closure_periods.length>=8} onClick={()=>setSpecial({...special,closure_periods:[...special.closure_periods,{start:'18:00',end:'19:00'}]})}>{t("＋新增休假時段")}</button>
    </>}
-   {specialMode==='open'&&<><SeatingEditor times={special.fixed_seating_times} firstStart={special.periods[0]?.start??''} onChange={times=>setSpecial({...special,fixed_seating_times:times})} t={t}/><h3>{t("特殊營業時段")}</h3>
+   {specialMode==='open'&&<><h3>{t("特殊營業時段")}</h3>
     {special.periods.map((p,i)=><div className="special-period" key={i}>
       <label>{t("開始")}<input type="time" required value={p.start} onChange={e=>setSpecial({...special,periods:special.periods.map((x,j)=>i===j?{...x,start:e.target.value}:x)})}/></label>
       <label>{t("結束")}<input type="time" required value={p.end} onChange={e=>setSpecial({...special,periods:special.periods.map((x,j)=>i===j?{...x,end:e.target.value}:x)})}/></label>
-      <button type="button" disabled={special.periods.length===1} onClick={()=>setSpecial({...special,periods:special.periods.filter((_,j)=>j!==i)})}>{t("移除")}</button>
+      {special.periods.length>1&&<button type="button" onClick={()=>setSpecial({...special,periods:special.periods.filter((_,j)=>j!==i)})}>{t("移除")}</button>}
      </div>)}
     <button type="button" disabled={special.periods.length>=8} onClick={()=>setSpecial({...special,periods:[...special.periods,{start:'17:00',end:'21:00'}]})}>{t("＋新增營業時段")}</button>
+    <SeatingEditor times={special.fixed_seating_times} firstStart={special.periods[0]?.start??''} onChange={times=>setSpecial({...special,fixed_seating_times:times})} t={t}/>
    </>}
    <label>{t("備註")}<input maxLength={500} value={special.notes} onChange={e=>setSpecial({...special,notes:e.target.value})}/></label>
    <div className="block-editor-actions"><button type="button" onClick={closeSpecial}>{t("返回")}</button><button className="primary" type="submit">{specialEditDate?t("儲存修改"):t("儲存特殊日期")}</button></div>
@@ -185,7 +186,6 @@ export default function Admin(){
    <div className="tabs">{([['bookings',t("訂位情況")],['tables',t("桌況與鎖桌")],['special',t("特殊休假與營業")],['settings',t("營運設定")],['reservation-log',t("訂位log")]] as const).map(([k,v])=>
     <button type="button" aria-current={tab===k?'page':undefined} className={tab===k?'active':''} key={k} onClick={()=>{if(k==='bookings'&&view==='day'){const today=dateToday();setDate(today);if(date===today)setBookingRefreshKey(n=>n+1);}setTab(k);}}>{v}</button>
    )}</div>
-   <span className="admin-navigation-hint">{t("左右滑動查看其他功能")}</span>
   </nav>
   {toast&&<div role="status" className={`toast ${toast.kind}`}>{toast.text}</div>}
   {tab==='bookings'&&<>
@@ -280,13 +280,13 @@ export default function Admin(){
       </label>
      </div>
      {!day.is_closed&&<>
-      <SeatingEditor times={day.fixed_seating_times} firstStart={day.periods[0]?.start??''} onChange={times=>updateWeeklyDay(id,{fixed_seating_times:times})} t={t}/>
       {day.periods.map((p,i)=><div className="weekly-period" key={i}>
        <label>{t("開始時間")}<input type="time" required value={p.start} onChange={e=>updateWeeklyPeriod(id,i,'start',e.target.value)}/></label>
        <label>{t("結束時間")}<input type="time" required value={p.end} onChange={e=>updateWeeklyPeriod(id,i,'end',e.target.value)}/></label>
-       <button type="button" disabled={day.periods.length===1} aria-label={t(label)+' '+(language==='es'?'Quitar turno ':t("移除第"))+(i+1)+(language==='es'?'':t("個時段"))} onClick={()=>updateWeeklyDay(id,{periods:day.periods.filter((_,j)=>j!==i)})}>{t("移除")}</button>
+       {day.periods.length>1&&<button type="button" aria-label={t(label)+' '+(language==='es'?'Quitar turno ':t("移除第"))+(i+1)+(language==='es'?'':t("個時段"))} onClick={()=>updateWeeklyDay(id,{periods:day.periods.filter((_,j)=>j!==i)})}>{t("移除")}</button>}
       </div>)}
       <button type="button" className="weekly-add" disabled={day.periods.length>=8} onClick={()=>updateWeeklyDay(id,{periods:[...day.periods,{start:'12:00',end:'14:00'}]})}>{t("＋ 新增時段")}</button>
+      <SeatingEditor times={day.fixed_seating_times} firstStart={day.periods[0]?.start??''} onChange={times=>updateWeeklyDay(id,{fixed_seating_times:times})} t={t}/>
      </>}
      {day.is_closed&&<p className="muted small">{t("公休，不開放訂位")}</p>}
     </section>;})}</div>

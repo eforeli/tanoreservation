@@ -131,7 +131,6 @@ const spanish:Record<string,string>={
   "未來 30 日": "Próximos 30 días",
   "查看日期": "Ver fecha",
   "後台功能": "Funciones del panel",
-  "左右滑動查看其他功能": "Deslizá para ver más opciones",
   "搜尋訂位": "Buscar reservas",
   "姓名、電話或編號": "Nombre, teléfono o código",
   "＋ 新增訂位": "+ Nueva reserva",

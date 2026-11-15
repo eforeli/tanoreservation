@@ -253,7 +253,9 @@ input[type="date"],input[type="time"]{width:100%;min-width:0;max-width:100%;-web
 .duplicate-booking-close{position:absolute;right:12px;top:10px;border:0;background:transparent;font-size:28px;line-height:1;width:44px;height:44px;padding:0;color:var(--muted)}
 .duplicate-booking-close:hover{color:var(--ink);background:#f3ece2}
 
-.calendar-trigger{display:block;width:100%;margin:7px 0 6px;text-align:left;padding:12px}
+.calendar-trigger{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;margin:7px 0 6px;text-align:left;padding:12px}
+.calendar-trigger svg{flex:none}
+.calendar-trigger[aria-expanded="true"] svg{transform:rotate(180deg)}
 .calendar-hint{margin:0 0 12px}
 .calendar-picker{margin-bottom:16px;border:1px solid var(--border);border-radius:9px;padding:8px;background:#fff}
 .calendar-nav{display:flex;align-items:center;justify-content:space-between;gap:4px;margin-bottom:8px;font-size:14px}
@@ -266,15 +268,24 @@ input[type="date"],input[type="time"]{width:100%;min-width:0;max-width:100%;-web
 
 .admin-heading-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .admin-heading-row button{flex:none;min-height:44px;padding:6px 10px;font-size:13px;white-space:nowrap;background:transparent}
-.admin-navigation-hint{display:none}
 @media(max-width:650px){
  .admin-heading h1{margin:2px 0 12px;line-height:1.15}
  .admin-navigation{margin-bottom:12px}
  .admin-navigation .tabs{margin-bottom:0;padding-bottom:4px}
- .admin-navigation-hint{display:block;text-align:right;color:var(--muted);font-size:12px}
  .booking-controls{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;margin-bottom:8px}
  .booking-date-controls{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
  .booking-controls input{min-height:44px;padding:8px 10px;margin-top:4px;font-size:16px}
  .booking-totals{white-space:nowrap;font-size:14px}
  .booking-stats>button{padding:8px 10px;font-size:14px}
+}
+
+.seating-editor{display:grid;gap:10px;min-width:0;margin:14px 0 0;padding-top:14px;border-top:1px solid var(--border)}
+.seating-editor select,.seating-editor input{min-height:44px;margin:4px 0 0;font-size:16px}
+.seating-editor>label,.seating-time label{min-width:0}
+.seating-time{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:8px;max-width:340px}
+.seating-editor button{min-height:44px}
+.seating-editor>button{justify-self:start}
+@media(max-width:650px){
+ .weekly-day-state{gap:6px;white-space:normal}
+ .weekly-day-state select{width:auto;min-width:0;max-width:100%;min-height:44px;padding:8px}
 }

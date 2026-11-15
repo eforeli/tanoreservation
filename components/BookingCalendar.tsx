@@ -1,6 +1,7 @@
 'use client';
 
 import {useEffect,useId,useRef,useState} from 'react';
+import {ChevronDown} from 'lucide-react';
 
 type CalendarData={today:string;lastDate:string;windowDays:number;closedDates:string[]};
 const weekdays=['日','一','二','三','四','五','六'];
@@ -63,8 +64,9 @@ export default function BookingCalendar({date,onSelect}:{date:string;onSelect:(d
     setOpen(!open);
    }}>
    {date||'選擇日期'}
+   <ChevronDown size={18} aria-hidden="true" focusable="false"/>
   </button>
-  {data&&<p className="muted small calendar-hint" id={id+'-window'}>（僅開放{data.windowDays}天前訂位，有特殊需求請直接與餐廳聯繫）</p>}
+  {data&&<p className="muted small calendar-hint" id={id+'-window'}>僅開放提前{data.windowDays}天訂位</p>}
   <div id={id+'-calendar'} hidden={!open} className="calendar-picker">
    {!data&&(!failed?<p role="status">載入可預約日期中…</p>:<>
     <p role="alert">暫時無法讀取可預約日期</p>
