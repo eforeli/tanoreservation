@@ -5,19 +5,37 @@ import ReservationLog from '@/components/ReservationLog';
 import {adminText,type AdminLanguage} from '@/lib/admin-i18n';
 const supa=()=>createClient(process.env.NEXT_PUBLIC_SUPABASE_URL||'',process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY||process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||'');
 const dateToday=()=>{const parts=new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const part=(type:string)=>parts.find(p=>p.type===type)?.value||'';return `${part('year')}-${part('month')}-${part('day')}`;};
-type R={id:string;confirmation_code:string;guest_name:string;guest_phone:string;party_size:number;starts_at:string;updated_at:string;status:string;notes:string;source:string;reservation_tables:{restaurant_tables:{code:string}|null}|null};
+type R={id:string;confirmation_code:string;guest_name:string;guest_phone:string;party_size:number;starts_at:string;created_at:string;updated_at:string;status:string;notes:string;source:string;reservation_tables:{restaurant_tables:{code:string}|null}|null};
 type Block={id:string;start_at:string;end_at:string|null;reason:string;restaurant_tables:{code:string}|null};
-type Special={id:string;business_date:string;is_closed:boolean;notes:string;periods:{start:string;end:string}[]|null;closure_periods:{start:string;end:string}[]|null;opens_at:string|null;closes_at:string|null};
+type Special={fixed_seating_times?:string[];id:string;business_date:string;is_closed:boolean;notes:string;periods:{start:string;end:string}[]|null;closure_periods:{start:string;end:string}[]|null;opens_at:string|null;closes_at:string|null};
 type WeeklyPeriod={start:string;end:string};
-type WeeklyRecord={weekday:number;is_closed:boolean;periods:WeeklyPeriod[]|null;opens_at:string|null;closes_at:string|null};
-type WeeklyDay={weekday:number;is_closed:boolean;periods:WeeklyPeriod[]};
+type WeeklyRecord={fixed_seating_times?:string[];weekday:number;is_closed:boolean;periods:WeeklyPeriod[]|null;opens_at:string|null;closes_at:string|null};
+type WeeklyDay={fixed_seating_times:string[];weekday:number;is_closed:boolean;periods:WeeklyPeriod[]};
 const weekdays=[{id:1,label:'週一'},{id:2,label:'週二'},{id:3,label:'週三'},{id:4,label:'週四'},{id:5,label:'週五'},{id:6,label:'週六'},{id:0,label:'週日'}];
 function normalizeWeeklyHours(records:WeeklyRecord[]):WeeklyDay[]{
  return weekdays.map(({id})=>{
   const r=records.find(x=>x.weekday===id);
-  if(!r)return {weekday:id,is_closed:true,periods:[]};
-  return {weekday:id,is_closed:r.is_closed,periods:r.periods?.length?r.periods.map(p=>({start:p.start.slice(0,5),end:p.end.slice(0,5)})):r.opens_at&&r.closes_at?[{start:r.opens_at.slice(0,5),end:r.closes_at.slice(0,5)}]:[]};
+  if(!r)return {weekday:id,is_closed:true,periods:[],fixed_seating_times:[]};
+  return {weekday:id,is_closed:r.is_closed,fixed_seating_times:r.fixed_seating_times?.map(time=>time.slice(0,5))??[],periods:r.periods?.length?r.periods.map(p=>({start:p.start.slice(0,5),end:p.end.slice(0,5)})):r.opens_at&&r.closes_at?[{start:r.opens_at.slice(0,5),end:r.closes_at.slice(0,5)}]:[]};
  });
+}
+function SeatingEditor({times,firstStart,onChange,t}:{times:string[];firstStart:string;onChange:(times:string[])=>void;t:(text:string)=>string}){
+ return <fieldset>
+  <legend>{t('訂位方式')}</legend>
+  <select aria-label={t('訂位方式')} value={times.length?'fixed':'general'}
+   onChange={e=>onChange(e.target.value==='fixed'?[firstStart]:[])}>
+   <option value="general">{t('一般訂位')}</option>
+   <option value="fixed">{t('固定入席')}</option>
+  </select>
+  {times.length>0&&<>
+   {times.map((time,index)=><div className="weekly-period" key={index}>
+    <label>{t('入席時間')} {index+1}<input type="time" required value={time}
+     onChange={e=>onChange(times.map((value,i)=>i===index?e.target.value:value))}/></label>
+    <button type="button" disabled={times.length===1} onClick={()=>onChange(times.filter((_,i)=>i!==index))}>{t('移除')}</button>
+   </div>)}
+   <button type="button" disabled={times.length>=24} onClick={()=>onChange([...times,''])}>{t('新增入席時間')}</button>
+  </>}
+ </fieldset>;
 }
 type Settings={dining_minutes:number;buffer_minutes:number;slot_interval_minutes:number;booking_window_days:number;min_advance_minutes:number;extra_chairs_total:number;max_arrivals_per_slot:number;max_online_party_size:number;last_seating_offset_minutes:number};
 const fields:(keyof Settings)[]=['dining_minutes','buffer_minutes','slot_interval_minutes','booking_window_days','min_advance_minutes','extra_chairs_total','max_arrivals_per_slot','max_online_party_size','last_seating_offset_minutes'];
@@ -32,7 +50,7 @@ export default function Admin(){
  const [client]=useState(supa),[token,setToken]=useState(''),[email,setEmail]=useState(''),[password,setPassword]=useState(''),[date,setDate]=useState(dateToday),[tableDate,setTableDate]=useState(dateToday),[view,setView]=useState<'day'|'7'|'30'>('day'),[tab,setTab]=useState<'bookings'|'new'|'tables'|'settings'|'special'|'reservation-log'>('bookings'),[items,setItems]=useState<R[]>([]),[tableItems,setTableItems]=useState<R[]>([]),[blocks,setBlocks]=useState<Block[]>([]),[futureBlocks,setFutureBlocks]=useState<Block[]>([]),[specials,setSpecials]=useState<Special[]>([]),[settings,setSettings]=useState<Settings|null>(null),[settingsTab,setSettingsTab]=useState<'rules'|'hours'>('rules'),[weeklyHours,setWeeklyHours]=useState<WeeklyDay[]>([]),[error,setError]=useState(''),[message,setMessage]=useState(''),[loading,setLoading]=useState(false),[filter,setFilter]=useState(''),[bookingRefreshKey,setBookingRefreshKey]=useState(0),[toast,setToast]=useState<{text:string;kind:'success'|'error'}|null>(null),[specialPage,setSpecialPage]=useState(false),[specialMode,setSpecialMode]=useState<'closed'|'partial'|'open'>('closed');
  const [form,setForm]=useState({date:dateToday(),time:'17:00',partySize:2,name:'',phone:'',notes:'',source:'phone',status:'confirmed'}),[editId,setEditId]=useState(''),[editVersion,setEditVersion]=useState('');
  const [block,setBlock]=useState({tableCode:'A1',date:dateToday(),start:'17:00',end:'19:00',reason:''}),[blockEditId,setBlockEditId]=useState(''),[blockPage,setBlockPage]=useState(false),[blockMode,setBlockMode]=useState<'range'|'ongoing'>('range'),[blockSaving,setBlockSaving]=useState(false);
- const [special,setSpecial]=useState({business_date:dateToday(),is_closed:true,periods:[{start:'17:00',end:'21:00'}],closure_periods:[{start:'18:00',end:'19:00'}],notes:''}),[specialEditDate,setSpecialEditDate]=useState('');
+ const [special,setSpecial]=useState({business_date:dateToday(),is_closed:true,fixed_seating_times:[] as string[],periods:[{start:'17:00',end:'21:00'}],closure_periods:[{start:'18:00',end:'19:00'}],notes:''}),[specialEditDate,setSpecialEditDate]=useState('');
  const request=useCallback(async(path:string,method='GET',body?:unknown)=>{const r=await fetch(`/api/admin/${path}`,{method,headers:{Authorization:`Bearer ${token}`,...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined,cache:'no-store'});const v=await r.json();if(!r.ok)throw Error(adminText(v.error||`HTTP ${r.status}`,language));return v;},[token,language]);
  const refresh=useCallback(async()=>{if(!token)return;setLoading(true);try{const bookingsDate=view==='day'?date:dateToday();const [r,t,b,allBlocks,s,x]=await Promise.all([request(`reservations?date=${bookingsDate}&days=${view==='day'?1:view}`),request(`reservations?date=${tableDate}&days=1`),request(`blocks?date=${tableDate}`),request('blocks?scope=future'),request('settings'),request('special')]);setItems(r.items);setTableItems(t.items);setBlocks(b.items.filter((item:Block)=>!item.end_at||new Date(item.end_at)>new Date()));setFutureBlocks(allBlocks.items);setSettings(s.settings);setWeeklyHours(normalizeWeeklyHours(s.hours||[]));setSpecials(x.items);setError('');}catch(e){setError(String(e));}finally{setLoading(false);}},[token,date,tableDate,view,request,bookingRefreshKey]);
  useEffect(()=>{if(window.sessionStorage.getItem('tano_admin_language')==='zh')setLanguage('zh');},[]);
@@ -48,12 +66,33 @@ export default function Admin(){
  function openNewBlock(){resetBlock();setBlockPage(true);}
  function closeBlockPage(){setBlockPage(false);resetBlock();}
  async function saveBlock(e:React.FormEvent){e.preventDefault();if(blockSaving)return;setBlockSaving(true);const success=await act(async()=>{if(blockMode==='range'&&block.end<=block.start)throw Error(t("結束時間必須晚於開始時間"));const payload={tableCode:block.tableCode,start:isoTime(block.date,block.start),end:blockMode==='ongoing'?null:isoTime(block.date,block.end),reason:block.reason};await request(blockEditId?`blocks/${blockEditId}`:'blocks',blockEditId?'PATCH':'POST',payload);},blockEditId?t("鎖桌已更新"):t("鎖桌已新增"));setBlockSaving(false);if(success){setTableDate(block.date);setBlockPage(false);resetBlock();}}
- function editSpecial(s:Special){setSpecialEditDate(s.business_date);setSpecialMode(s.is_closed?'closed':s.closure_periods?.length?'partial':'open');setSpecial({business_date:s.business_date,is_closed:s.is_closed,notes:s.notes||'',periods:s.periods?.length?s.periods:s.opens_at&&s.closes_at?[{start:s.opens_at.slice(0,5),end:s.closes_at.slice(0,5)}]:[{start:'17:00',end:'21:00'}],closure_periods:s.closure_periods?.length?s.closure_periods:[{start:'18:00',end:'19:00'}]});setSpecialPage(true);}
- function resetSpecial(){setSpecialEditDate('');setSpecialMode('closed');setSpecial({business_date:dateToday(),is_closed:true,periods:[{start:'17:00',end:'21:00'}],closure_periods:[{start:'18:00',end:'19:00'}],notes:''});}
+ function editSpecial(s:Special){setSpecialEditDate(s.business_date);setSpecialMode(s.is_closed?'closed':s.closure_periods?.length?'partial':'open');setSpecial({business_date:s.business_date,is_closed:s.is_closed,fixed_seating_times:s.fixed_seating_times?.map(time=>time.slice(0,5))??[],notes:s.notes||'',periods:s.periods?.length?s.periods:s.opens_at&&s.closes_at?[{start:s.opens_at.slice(0,5),end:s.closes_at.slice(0,5)}]:[{start:'17:00',end:'21:00'}],closure_periods:s.closure_periods?.length?s.closure_periods:[{start:'18:00',end:'19:00'}]});setSpecialPage(true);}
+ function resetSpecial(){setSpecialEditDate('');setSpecialMode('closed');setSpecial({business_date:dateToday(),is_closed:true,fixed_seating_times:[] as string[],periods:[{start:'17:00',end:'21:00'}],closure_periods:[{start:'18:00',end:'19:00'}],notes:''});}
  function openNewSpecial(){resetSpecial();setSpecialPage(true);}
  function chooseBookingRange(next:'day'|'7'|'30'){if(next==='day'){setDate(dateToday());}if(view===next&&(next!=='day'||date===dateToday()))setBookingRefreshKey(n=>n+1);setView(next);}
  function closeSpecial(){setSpecialPage(false);resetSpecial();}
- async function saveSpecial(e:React.FormEvent){e.preventDefault();const success=await act(async()=>{if(specialEditDate&&specialEditDate!==special.business_date)throw Error(t("編輯時不可修改日期，請刪除原紀錄後新增"));const result=await request('special','POST',{...special,mode:specialMode});return result.existingBookings>0?(language==='es'?`Configuración guardada; ya hay ${result.existingBookings} reservas para ese día. Contactá a los clientes para confirmar.`:`設定已儲存；當日已有 ${result.existingBookings} 筆訂位，請聯絡客人確認`):t('特殊日期已儲存');});if(success)closeSpecial();}
+ async function saveSpecial(e:React.FormEvent){
+  e.preventDefault();
+  if(specialEditDate&&specialEditDate!==special.business_date){
+   setToast({text:t('編輯時不可修改日期，請刪除原紀錄後新增'),kind:'error'});
+   return;
+  }
+  try{
+   const {count}=await request('special/booking-count?date='+encodeURIComponent(special.business_date));
+   if(count>0&&!window.confirm(t('當日已有訂位，請確認是否仍要儲存')))return;
+  }catch(error){
+   setToast({text:error instanceof Error?error.message:String(error),kind:'error'});
+   return;
+  }
+  const saved=await act(async()=>{
+   const result=await request('special','POST',{...special,mode:specialMode});
+   if(result.existingBookings>0)return language==='es'
+    ?`Configuración guardada; ya hay ${result.existingBookings} reservas para ese día. Contactá a los clientes para confirmar.`
+    :`設定已儲存；當日已有 ${result.existingBookings} 筆訂位，請聯絡客人確認`;
+   return t('特殊日期已儲存');
+  });
+  if(saved)closeSpecial();
+ }
  function edit(r:R){const d=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(r.starts_at));setForm({date:d,time:taipei(r.starts_at),partySize:r.party_size,name:r.guest_name,phone:r.guest_phone,notes:r.notes,source:r.source,status:r.status});setEditVersion(r.updated_at);setEditId(r.id);setTab('new');}
  async function cancel(r:R){if(!confirm(language==='es'?`¿Querés cancelar la reserva ${r.confirmation_code} de ${r.guest_name}?`:`確定取消 ${r.guest_name} ${r.confirmation_code} 的訂位？`))return;await act(()=>request(`reservations/${r.id}/cancel`,'POST',{reason:'管理員取消'}));}
  function updateWeeklyDay(weekday:number,patch:Partial<WeeklyDay>){setWeeklyHours(prev=>prev.map(d=>d.weekday===weekday?{...d,...patch}:d));}
@@ -61,7 +100,7 @@ export default function Admin(){
  async function saveWeeklyHours(e:React.FormEvent){e.preventDefault();await act(async()=>{const response=await request('weekly-hours','PATCH',weeklyHours);setWeeklyHours(normalizeWeeklyHours(response.hours));},t("常態營業時間已儲存"));}
  if(!token)return <section className="panel narrow">{toast&&<div role="status" className={`toast ${toast.kind}`}>{toast.text}</div>}<h1>{t("員工專區")}</h1><form onSubmit={login}><label>{t("語言")}<select value={language} onChange={e=>setLanguage(e.target.value as AdminLanguage)}><option value="es">Español (Argentina)</option><option value="zh">{t("繁體中文")}</option></select></label><label>{t("員工編號")}<input type="email" value={email} onChange={e=>setEmail(e.target.value)} required/></label><label>{t("通行憑證")}<input type="password" value={password} onChange={e=>setPassword(e.target.value)} required/></label>{error&&<p className="error">{error}</p>}<button className="primary full">{t("登入")}</button></form></section>;
  if(tab==='new')return <section className="panel narrow admin-editor-screen">
-  <button type="button" className="block-back" onClick={()=>{setEditId('');setTab('bookings');}}>{t("← 返回訂位詳情")}</button>
+  <button type="button" className="block-back" onClick={()=>{setEditId('');setTab('bookings');}}>{t("← 返回訂位情況")}</button>
   <h1>{editId?t("編輯訂位"):t("新增訂位")}</h1>
   {toast&&<div role="status" className={`toast ${toast.kind}`}>{toast.text}</div>}
   <form onSubmit={createOrEdit}>
@@ -96,7 +135,7 @@ export default function Admin(){
      </div>)}
     <button type="button" disabled={special.closure_periods.length>=8} onClick={()=>setSpecial({...special,closure_periods:[...special.closure_periods,{start:'18:00',end:'19:00'}]})}>{t("＋新增休假時段")}</button>
    </>}
-   {specialMode==='open'&&<><h3>{t("特殊營業時段")}</h3>
+   {specialMode==='open'&&<><SeatingEditor times={special.fixed_seating_times} firstStart={special.periods[0]?.start??''} onChange={times=>setSpecial({...special,fixed_seating_times:times})} t={t}/><h3>{t("特殊營業時段")}</h3>
     {special.periods.map((p,i)=><div className="special-period" key={i}>
       <label>{t("開始")}<input type="time" required value={p.start} onChange={e=>setSpecial({...special,periods:special.periods.map((x,j)=>i===j?{...x,start:e.target.value}:x)})}/></label>
       <label>{t("結束")}<input type="time" required value={p.end} onChange={e=>setSpecial({...special,periods:special.periods.map((x,j)=>i===j?{...x,end:e.target.value}:x)})}/></label>
@@ -133,8 +172,41 @@ export default function Admin(){
   </form>
  </section>;
  const shown=items.filter(r=>[r.guest_name,r.guest_phone,r.confirmation_code,r.status].some(s=>s.includes(filter)));
- return <section className="panel" lang={language==='es'?'es-AR':'zh-Hant'}><div className="toolbar" style={{justifyContent:'space-between'}}><div><div className="eyebrow">TANO OPERATIONS</div><h1>{t("員工專用")}</h1></div><button onClick={()=>{window.sessionStorage.removeItem('tano_admin_language');setLanguage('es');void client.auth.signOut();}}>{t("登出")}</button></div><div className="tabs">{([['bookings',t("訂位詳情")],['tables',t("桌況與鎖桌")],['special',t("特殊休假與營業")],['settings',t("營運設定")],['reservation-log',t("訂位log")]] as const).map(([k,v])=><button className={tab===k?'active':''} key={k} onClick={()=>{if(k==='bookings'&&view==='day'){const today=dateToday();setDate(today);if(date===today)setBookingRefreshKey(n=>n+1);}setTab(k);}} >{v}</button>)}</div>{toast&&<div role="status" className={`toast ${toast.kind}`}>{toast.text}</div>}
- {tab==='bookings'&&<><div className="toolbar booking-controls"><div className="range-buttons"><button type="button" className={view==='day'?'active':''} onClick={()=>chooseBookingRange('day')}>{t("指定日期")}</button><button type="button" className={view==='7'?'active':''} onClick={()=>chooseBookingRange('7')}>{t("未來 7 日")}</button><button type="button" className={view==='30'?'active':''} onClick={()=>chooseBookingRange('30')}>{t("未來 30 日")}</button></div>{view==='day'&&<label>{t("查看日期")}<input type="date" value={date} onChange={e=>setDate(e.target.value)}/></label>}<label>{t("搜尋姓名／電話／編號")}<input value={filter} onChange={e=>setFilter(e.target.value)}/></label></div><div className="stats booking-stats"><span>{t("總組數：")}{shown.filter(r=>r.status!=='cancelled').length}</span><span>{t("總人數：")}{shown.filter(r=>r.status!=='cancelled').reduce((s,r)=>s+r.party_size,0)}</span><button type="button" className="primary" onClick={openNewBooking}>{t("＋ 新增訂位")}</button></div><div className="tablewrap"><table className="responsive-table booking-detail-table"><thead><tr>{[t('日期'),t("入席"),t("人數"),t("客人"),t("電話"),t("桌位"),t("訂位編號"),t("備註"),t("操作")].map(x=><th key={x}>{x}</th>)}</tr></thead><tbody>{shown.map(r=><tr key={r.id}><td data-label={t("日期")}>{language==='es'?localDate(r.starts_at):displayBookingDate(r.starts_at)}</td><td data-label={t("入席")}>{taipei(r.starts_at)}</td><td data-label={t("人數")}>{r.party_size}</td><td data-label={t("客人")}>{r.guest_name}</td><td data-label={t("電話")}><a href={`tel:${r.guest_phone}`}>{r.guest_phone}</a></td><td data-label={t("桌位")}>{r.reservation_tables?.restaurant_tables?.code||'—'}</td><td data-label={t("訂位編號")}>{r.confirmation_code}</td><td data-label={t("備註")}>{r.notes||'—'}</td><td data-label={t("操作")}><div className="actions"><button onClick={()=>edit(r)} disabled={r.status==='cancelled'}>{t("編輯")}</button><button onClick={()=>cancel(r)} disabled={r.status==='cancelled'}>{t("取消")}</button></div></td></tr>)}</tbody></table>{loading?t('載入中…'):!shown.length?t('所選期間沒有訂位'):''}</div></>}
+ const guestCount=shown.reduce((total,reservation)=>total+reservation.party_size,0);
+ return <section className="panel" lang={language==='es'?'es-AR':'zh-Hant'}>
+  <div className="admin-heading">
+   <div className="admin-heading-row">
+    <div className="eyebrow">TANO OPERATIONS</div>
+    <button type="button" onClick={()=>{window.sessionStorage.removeItem('tano_admin_language');setLanguage('es');void client.auth.signOut();}}>{t("登出")}</button>
+   </div>
+   <h1>{t("員工專用")}</h1>
+  </div>
+  <nav className="admin-navigation" aria-label={t("後台功能")}>
+   <div className="tabs">{([['bookings',t("訂位情況")],['tables',t("桌況與鎖桌")],['special',t("特殊休假與營業")],['settings',t("營運設定")],['reservation-log',t("訂位log")]] as const).map(([k,v])=>
+    <button type="button" aria-current={tab===k?'page':undefined} className={tab===k?'active':''} key={k} onClick={()=>{if(k==='bookings'&&view==='day'){const today=dateToday();setDate(today);if(date===today)setBookingRefreshKey(n=>n+1);}setTab(k);}}>{v}</button>
+   )}</div>
+   <span className="admin-navigation-hint">{t("左右滑動查看其他功能")}</span>
+  </nav>
+  {toast&&<div role="status" className={`toast ${toast.kind}`}>{toast.text}</div>}
+  {tab==='bookings'&&<>
+   <div className="toolbar booking-controls">
+    <div className="booking-date-controls">
+     <div className="range-buttons">
+      {([['day','指定日期'],['7','未來 7 日'],['30','未來 30 日']] as const).map(([range,label])=>
+       <button type="button" key={range} aria-pressed={view===range} className={view===range?'active':''} onClick={()=>chooseBookingRange(range)}>{t(label)}</button>
+      )}
+     </div>
+     {view==='day'&&<label>{t("查看日期")}<input type="date" value={date} onChange={e=>setDate(e.target.value)}/></label>}
+    </div>
+    <label>{t("搜尋訂位")}<input type="search" placeholder={t("姓名、電話或編號")} value={filter} onChange={e=>setFilter(e.target.value)}/></label>
+   </div>
+   <div className="booking-stats">
+    <p className="booking-totals" aria-live="polite">{language==='es'
+     ? `${shown.length} ${shown.length===1?'reserva':'reservas'} · ${guestCount} ${guestCount===1?'persona':'personas'}`
+     : `${shown.length} 組 · ${guestCount} 位`}</p>
+    <button type="button" className="primary" onClick={openNewBooking}>{t("＋ 新增訂位")}</button>
+   </div>
+   <div className="tablewrap"><table className="responsive-table booking-detail-table"><thead><tr>{[t('日期'),t("入席"),t("人數"),t("客人"),t("電話"),t("桌位"),t("訂位編號"),t("備註"),t("操作")].map(x=><th key={x}>{x}</th>)}</tr></thead><tbody>{shown.map(r=><tr key={r.id}><td data-label={t("日期")}>{language==='es'?localDate(r.starts_at):displayBookingDate(r.starts_at)}</td><td data-label={t("入席")}>{taipei(r.starts_at)}</td><td data-label={t("人數")}>{r.party_size}</td><td data-label={t("客人")}>{r.guest_name}</td><td data-label={t("電話")}><a href={`tel:${r.guest_phone}`}>{r.guest_phone}</a></td><td data-label={t("桌位")}>{r.reservation_tables?.restaurant_tables?.code||'—'}</td><td data-label={t("訂位編號")}><div className="reservation-log-code"><strong>{r.confirmation_code}</strong><small>{t("首次成立：")}{r.created_at?<time dateTime={r.created_at}>{localDate(r.created_at)} {taipei(r.created_at)}</time>: "—"}</small></div></td><td data-label={t("備註")}>{r.notes||'—'}</td><td data-label={t("操作")}><div className="actions"><button onClick={()=>edit(r)} disabled={r.status==='cancelled'}>{t("編輯")}</button><button onClick={()=>cancel(r)} disabled={r.status==='cancelled'}>{t("取消")}</button></div></td></tr>)}</tbody></table>{loading?t('載入中…'):!shown.length?t('所選期間沒有訂位'):''}</div></>}
   {tab==='tables'&&<>
   <div className="toolbar block-table-header"><h2>{t("桌位時間軸（訂位／鎖定）")}</h2></div>
   <div className="toolbar"><label>{t("查看日期")}<input type="date" value={tableDate} onChange={e=>setTableDate(e.target.value)}/></label></div>
@@ -208,6 +280,7 @@ export default function Admin(){
       </label>
      </div>
      {!day.is_closed&&<>
+      <SeatingEditor times={day.fixed_seating_times} firstStart={day.periods[0]?.start??''} onChange={times=>updateWeeklyDay(id,{fixed_seating_times:times})} t={t}/>
       {day.periods.map((p,i)=><div className="weekly-period" key={i}>
        <label>{t("開始時間")}<input type="time" required value={p.start} onChange={e=>updateWeeklyPeriod(id,i,'start',e.target.value)}/></label>
        <label>{t("結束時間")}<input type="time" required value={p.end} onChange={e=>updateWeeklyPeriod(id,i,'end',e.target.value)}/></label>

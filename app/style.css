@@ -15,8 +15,8 @@ input[type="date"],input[type="time"]{width:100%;min-width:0;max-width:100%;-web
 .field-hint{display:block;color:var(--muted);font-size:12px;margin:-11px 0 14px;font-weight:400}
 .range-buttons{display:flex;gap:8px;flex-wrap:wrap}
 .range-buttons .active{background:#342a25;color:#fff;border-color:#342a25}
-.booking-controls{align-items:end}
-.booking-controls>label{flex:1 1 170px}
+.booking-controls,.booking-date-controls{display:flex;flex-wrap:wrap;align-items:end;gap:10px}
+.booking-controls>label,.booking-date-controls>label{flex:1 1 170px}
 .booking-controls>label input{margin-top:7px}
 .responsive-table td a{text-decoration:underline;text-underline-offset:2px}
 @media(max-width:650px){
@@ -149,7 +149,8 @@ input[type="date"],input[type="time"]{width:100%;min-width:0;max-width:100%;-web
 .site-menu-items a{display:block;padding:13px 12px;color:var(--ink);text-decoration:none;font-size:14px;border-radius:7px}
 .site-menu-items a:hover,.site-menu-items a:focus-visible{background:#f3ece2}
 .admin-editor-screen{max-width:660px}
-.booking-stats{display:flex;align-items:center;flex-wrap:wrap;gap:10px}
+.booking-stats{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin:10px 0 12px}
+.booking-totals{margin:0;font-weight:650;font-variant-numeric:tabular-nums}
 .booking-stats>button{margin-left:auto;min-height:44px}
 .special-list-section{margin-top:6px}
 .special-period{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:10px;align-items:end}
@@ -159,8 +160,6 @@ input[type="date"],input[type="time"]{width:100%;min-width:0;max-width:100%;-web
 @media(max-width:650px){
  .site-nav{margin-left:auto}
  .site-menu-items{min-width:165px}
- .booking-stats{align-items:center}
- .booking-stats>button{margin-left:auto;min-height:44px}
  .special-period{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
  .special-period button{grid-column:1/-1;justify-self:end;margin:0 0 13px}
 }
@@ -230,6 +229,7 @@ input[type="date"],input[type="time"]{width:100%;min-width:0;max-width:100%;-web
 .reservation-log-filter-actions{display:flex;gap:8px;align-items:center;grid-column:1/-1}
 .reservation-log-summary{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:10px 0;color:var(--muted);font-size:13px}
 .reservation-log-code{display:flex;flex-direction:column;gap:4px;min-width:130px}
+.booking-detail-table .reservation-log-code{min-width:0}
 .reservation-log-code strong{overflow-wrap:anywhere}
 .reservation-log-code small{font-size:11px;color:var(--muted);white-space:normal;line-height:1.45}
 .reservation-log-table td{white-space:normal;vertical-align:top;min-width:95px;line-height:1.5}
@@ -252,3 +252,29 @@ input[type="date"],input[type="time"]{width:100%;min-width:0;max-width:100%;-web
 .duplicate-booking-modal .booking-link-primary{margin:0}
 .duplicate-booking-close{position:absolute;right:12px;top:10px;border:0;background:transparent;font-size:28px;line-height:1;width:44px;height:44px;padding:0;color:var(--muted)}
 .duplicate-booking-close:hover{color:var(--ink);background:#f3ece2}
+
+.calendar-trigger{display:block;width:100%;margin:7px 0 6px;text-align:left;padding:12px}
+.calendar-hint{margin:0 0 12px}
+.calendar-picker{margin-bottom:16px;border:1px solid var(--border);border-radius:9px;padding:8px;background:#fff}
+.calendar-nav{display:flex;align-items:center;justify-content:space-between;gap:4px;margin-bottom:8px;font-size:14px}
+.calendar-nav button{padding:4px 9px}
+.calendar-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px;text-align:center;font-size:12px}
+.calendar-days button{min-width:0;padding:0;min-height:30px;border-radius:5px}
+.calendar-days button:disabled,.calendar-days button.calendar-unavailable{background:#efeeec;color:#746e69;opacity:.72}
+.calendar-closed-notice{margin:8px 0 0;color:var(--muted);font-size:13px;text-align:center}
+.calendar-days button[aria-pressed="true"]:not(:disabled){background:var(--accent);color:#fff}
+
+.admin-heading-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.admin-heading-row button{flex:none;min-height:44px;padding:6px 10px;font-size:13px;white-space:nowrap;background:transparent}
+.admin-navigation-hint{display:none}
+@media(max-width:650px){
+ .admin-heading h1{margin:2px 0 12px;line-height:1.15}
+ .admin-navigation{margin-bottom:12px}
+ .admin-navigation .tabs{margin-bottom:0;padding-bottom:4px}
+ .admin-navigation-hint{display:block;text-align:right;color:var(--muted);font-size:12px}
+ .booking-controls{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;margin-bottom:8px}
+ .booking-date-controls{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
+ .booking-controls input{min-height:44px;padding:8px 10px;margin-top:4px;font-size:16px}
+ .booking-totals{white-space:nowrap;font-size:14px}
+ .booking-stats>button{padding:8px 10px;font-size:14px}
+}

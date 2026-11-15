@@ -30,7 +30,7 @@ const state=(d=day,n=2)=>one('select public.booking_day_state($1,$2)',[d,n]);
 const only=async(...tables)=>q('update public.restaurant_tables set is_active=code=any($1::text[])',[tables]);
 const at=(d,t)=>d+'T'+t+':00+08:00';
 const block=(table,d,a,b)=>one('select public.admin_block_table($1,$2,$3,$4,$5)',[table,at(d,a),b?at(d,b):null,'QA synthetic',actor]);
-const reset=async()=>q("truncate public.customer_booking_verify_attempts,public.customer_booking_sessions,public.customer_booking_audit_logs,public.reservation_tables,public.reservations,public.table_blocks,public.admin_audit_logs,public.special_business_hours restart identity; update public.restaurant_tables set is_active=true; update public.booking_settings set dining_minutes=90,buffer_minutes=20,slot_interval_minutes=30,booking_window_days=30,min_advance_minutes=30,extra_chairs_total=2,max_arrivals_per_slot=5,max_online_party_size=5,last_seating_offset_minutes=90;");
+const reset=async()=>q("truncate public.customer_booking_verify_attempts,public.customer_booking_sessions,public.customer_booking_audit_logs,public.reservation_tables,public.reservations,public.table_blocks,public.admin_audit_logs,public.special_business_hours restart identity; update public.restaurant_tables set is_active=true; update public.weekly_business_hours set fixed_seating_times='{}'; update public.booking_settings set dining_minutes=90,buffer_minutes=20,slot_interval_minutes=30,booking_window_days=30,min_advance_minutes=30,extra_chairs_total=2,max_arrivals_per_slot=5,max_online_party_size=5,last_seating_offset_minutes=90;");
 const checks=[];
 async function test(id,label,fn){await reset();try{const observed=await fn(); checks.push({id,label,status:'Pass',observed});}catch(e){checks.push({id,label,status:'Fail',observed:e.message,code:e.code});} console.log(checks.at(-1));}
 await test('I01','建立、確認編號及分桌交易',async()=>{let r=await create();let x=await row(r.confirmation_code);assert.match(r.confirmation_code,/^[A-Z0-9]{6}$/);assert.equal(x.table_code,'A2');assert.equal(x.status,'confirmed');assert.equal(x.party_size,2);return '一筆訂位、一筆 A2 關聯';});
@@ -145,6 +145,75 @@ await test('B24','先成立的訂位遇到之後的休假仍保留',async()=>{
  await q('insert into public.special_business_hours(business_date,is_closed) values($1,true)',[day]);
  await assert.rejects(create(day,'17:30'),/not eligible/);
  assert.equal((await row(a.confirmation_code)).status,'confirmed');
+});
+const fixed=()=>q("update public.weekly_business_hours set fixed_seating_times=array['17:00','19:00']::time[] where weekday=2");
+await test('F01','固定場次只顯示指定時間，同桌可在下一場立即使用',async()=>{
+ await fixed();await only('A2');
+ assert.deepEqual(await slots(),['17:00','19:00']);
+ assert.ok((await slots(next)).includes('17:30'));
+ await assert.rejects(create(day,'17:30'),/not eligible/);
+ const first=await create(day,'17:00');
+ const firstRow=await row(first.confirmation_code);
+ assert.equal(Number(firstRow.dining),120);assert.equal(Number(firstRow.buffer),0);
+ assert.deepEqual(await slots(),['19:00']);
+ const second=await create(day,'19:00');
+ assert.equal(Number((await row(second.confirmation_code)).buffer),0);
+});
+await test('F02','特殊營業更換固定場次，部分休假保留場次並縮短占用',async()=>{
+ await fixed();
+ await q("insert into public.special_business_hours(business_date,is_closed,periods,fixed_seating_times) values($1,false,$2,array['18:00']::time[])",[day,JSON.stringify([{start:'17:00',end:'19:00'}])]);
+ assert.deepEqual(await slots(),['18:00']);
+ await q("update public.special_business_hours set closure_periods=$2 where business_date=$1",[day,JSON.stringify([{start:'18:00',end:'19:30'}])]);
+ assert.deepEqual(await slots(),['17:00']);
+ const a=await create();
+ assert.equal(Number((await row(a.confirmation_code)).dining),60);
+ await q("update public.special_business_hours set is_closed=true where business_date=$1",[day]);
+ assert.equal(await state(),'closed');
+});
+await test('F03','後台改期到固定場次會依場次重算占用',async()=>{
+ await fixed();const a=await create(next,'17:00');const r=await row(a.confirmation_code);
+ const stamp=await one('select updated_at::text from public.reservations where id=$1',[r.id]);
+ await q('select public.admin_update_booking_versioned($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)',[r.id,day,'19:00',2,'QA synthetic',r.guest_phone,'','confirmed',actor,stamp]);
+ const changed=await row(a.confirmation_code);
+ assert.equal(Number(changed.dining),120);assert.equal(Number(changed.buffer),0);
+});
+await test('F04','顧客改期只可選固定場次，既有訂位保持原占用',async()=>{
+ const phone=freshPhone();const existing=await create(day,'17:30',2,phone);
+ const before=await row(existing.confirmation_code);
+ await fixed();
+ assert.equal(Number((await row(existing.confirmation_code)).dining),Number(before.dining));
+ const session='a'.repeat(64);
+ const v=await one('select public.customer_verify_booking($1,$2,$3,$4)',[existing.confirmation_code,phone,session,'b'.repeat(64)]);
+ assert.deepEqual(await one('select public.customer_available_slots($1,$2,$3)',[session,day,2]),['17:00','19:00']);
+ const details=[v.guest_name,phone,'QA',v.updated_at];
+ await assert.rejects(one('select public.customer_update_booking($1,$2,$3,$4,$5,$6,$7,$8)',[session,day,'18:00',2,...details]),/not eligible/);
+ await one('select public.customer_update_booking($1,$2,$3,$4,$5,$6,$7,$8)',[session,day,'19:00',2,...details]);
+ assert.equal(Number((await row(existing.confirmation_code)).buffer),0);
+});
+await test('F05','日曆含今日、反映特殊休假，且額滿仍為營業日',async()=>{
+ const calendar=()=>one('select public.booking_calendar()');
+ const bounds=await calendar();
+ assert.equal(bounds.windowDays,30);
+ assert.equal(bounds.today,today);
+ const last=await one('select ($1::date+29)::text',[today]);
+ const outside=await one('select ($1::date+30)::text',[today]);
+ assert.equal(bounds.lastDate,last);
+ assert.ok(bounds.closedDates.includes(closed));
+ const periods=JSON.stringify([{start:'17:00',end:'21:00'}]);
+ for(const date of [closed,last,outside]){
+  await q('insert into public.special_business_hours(business_date,is_closed,periods) values($1,false,$2) on conflict (business_date) do nothing',[date,periods]);
+ }
+ assert.ok(!(await calendar()).closedDates.includes(closed));
+ assert.ok((await slots(last)).includes('17:00'));
+ assert.deepEqual(await slots(outside),[]);
+ await assert.rejects(create(outside,'17:00'),/not eligible/);
+ assert.equal(await one("select public.customer_valid_edit_slot($1,'17:00',2)",[outside]),false);
+ await fixed();await only('A2');
+ await create(day,'17:00');await create(day,'19:00');
+ assert.equal(await state(),'full');
+ assert.ok(!(await calendar()).closedDates.includes(day));
+ await q('insert into public.special_business_hours(business_date,is_closed) values($1,true)',[day]);
+ assert.ok((await calendar()).closedDates.includes(day));
 });
 if(process.env.QA_OUTPUT)await fs.writeFile(process.env.QA_OUTPUT,JSON.stringify(checks,null,2));
 if(checks.some(check=>check.status==='Fail'))process.exitCode=1;

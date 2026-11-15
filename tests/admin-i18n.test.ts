@@ -5,14 +5,14 @@ import {adminText} from '../lib/admin-i18n';
 test('admin defaults can be rendered in Argentine Spanish',()=>{
  assert.equal(adminText('員工專區','es'),'Acceso del personal');
  assert.equal(adminText('登入','es'),'Iniciar sesión');
- assert.equal(adminText('訂位詳情','es'),'Reservas');
+ assert.equal(adminText('訂位情況','es'),'Reservas');
  assert.equal(adminText('訂位log','es'),'Historial de cambios');
  assert.equal(adminText('載入中…','es'),'Cargando…');
  assert.equal(adminText('所選期間沒有訂位','es'),'No hay reservas en el período seleccionado');
 });
 
 test('Traditional Chinese retains original UI labels',()=>{
- for(const key of ['員工專區','訂位詳情','取消','營運設定','訂位 log']){
+ for(const key of ['員工專區','訂位情況','取消','營運設定','訂位 log']){
   assert.equal(adminText(key,'zh'),key);
  }
 });

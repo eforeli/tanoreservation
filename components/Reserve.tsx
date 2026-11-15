@@ -2,15 +2,15 @@
 import {useEffect,useState} from 'react';
 import {useLanguage} from '@/components/SiteShell';
 import Link from 'next/link';
+import BookingCalendar from '@/components/BookingCalendar';
 
-function taiwanToday(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());}
 type Receipt={confirmation_code:string;starts_at:string;party_size:number;guest_name:string;guest_phone:string};
 type ManagedBooking=Receipt&{notes:string;status:string;updated_at:string;can_manage:boolean};
 const strings={
  zh:{
-  bookingConfirmed:'訂位成功',bookingCode:'訂位編號',guest:'姓名',persons:'人數',date:'日期',time:'時間',personUnit:' 位',
+  bookingConfirmed:'訂位成功',bookingCode:'訂位編號',guest:'訂位姓名',persons:'用餐人數',date:'用餐日期',time:'入席時間',personUnit:' 位',
   copyTitle:'複製訂位資料',copied:'訂位資訊已複製',copyFailed:'複製失敗，請手動截圖保存',
-  receiptNotice:'請複製訂位資料，貼到官方LINE，餐廳將核對確認。',changeNotice:'＊若需取消或修改訂位資訊，請提早Line通知我們。',
+  receiptNotice:'請複製訂位資料，貼到官方LINE，餐廳將核對確認。',changeNotice:'＊若需取消/修改訂位，請提前至訂位系統更改',
   heading:'預約 TANO 的一席',tagline:'炭火慢慢逼出肉香，也定下 TANO 的味道。',
   diningDate:'用餐日期',party:'用餐人數',chooseTime:'選擇入席時間',loading:'查詢可訂時段中…',empty:'當日目前沒有可訂時段',closed:'本日公休',full:'本日訂位額滿',unavailable:'目前沒有可開放的訂位時段',
   contactName:'聯絡姓名',phone:'手機號碼',namePlaceholder:'請填寫姓名',phonePlaceholder:'09xxxxxxxx',
@@ -22,7 +22,7 @@ const strings={
  en:{
   bookingConfirmed:'Reservation Confirmed',bookingCode:'Reservation Code',guest:'Name',persons:'Party Size',date:'Date',time:'Time',personUnit:' guests',
   copyTitle:'Copy all reservation details',copied:'Reservation details copied',copyFailed:'Unable to copy. Please save a screenshot instead.',
-  receiptNotice:'Copy your reservation details and send them to our official LINE account',changeNotice:'*To cancel or change your reservation, please notify us early via LINE.',
+  receiptNotice:'Copy your reservation details and send them to our official LINE account',changeNotice:'*To cancel or change your reservation, please use the booking system in advance.',
   heading:'Reserve a Table at TANO',tagline:'Slowly grilled over charcoal, crafted with the unmistakable taste of TANO.',
   diningDate:'Dining Date',party:'Party Size',chooseTime:'Select an Arrival Time',loading:'Checking available times…',empty:'No available times for this date',closed:'Closed today',full:'Fully booked today',unavailable:'No booking times available',
   contactName:'Contact Name',phone:'Mobile Number',namePlaceholder:'Enter your name',phonePlaceholder:'09xxxxxxxx',
@@ -35,7 +35,7 @@ const strings={
 
 export default function Reserve({edit=false}:{edit?:boolean}){
  const {language}=useLanguage();const t=strings[language];
- const [date,setDate]=useState(taiwanToday),[party,setParty]=useState(2),[slots,setSlots]=useState<string[]>([]),[time,setTime]=useState(''),[dayState,setDayState]=useState<'closed'|'full'|'unavailable'|'available'>('unavailable'),[name,setName]=useState(''),[phone,setPhone]=useState(''),[notes,setNotes]=useState('');
+ const [date,setDate]=useState(''),[party,setParty]=useState(2),[slots,setSlots]=useState<string[]>([]),[time,setTime]=useState(''),[dayState,setDayState]=useState<'closed'|'full'|'unavailable'|'available'>('unavailable'),[name,setName]=useState(''),[phone,setPhone]=useState(''),[notes,setNotes]=useState('');
  const [busy,setBusy]=useState(false),[loading,setLoading]=useState(false),[error,setError]=useState(''),[receipt,setReceipt]=useState<Receipt|null>(null),[duplicateDialog,setDuplicateDialog]=useState(false);
  const [key]=useState(()=>crypto.randomUUID()),[copied,setCopied]=useState(false);
  const [original,setOriginal]=useState<ManagedBooking|null>(null),[initializing,setInitializing]=useState(edit);
@@ -55,7 +55,7 @@ export default function Reserve({edit=false}:{edit?:boolean}){
   .finally(()=>{if(active)setInitializing(false);});
   return()=>{active=false;};
  },[edit]);
- useEffect(()=>{if(!ready)return;let live=true;setTime('');setError('');setLoading(true);fetch(edit?
+ useEffect(()=>{if(!ready||!date)return;let live=true;setTime('');setError('');setLoading(true);fetch(edit?
   `/api/customer-booking?mode=slots&date=${date}&partySize=${party}`:
   `/api/availability?date=${date}&partySize=${party}`,{cache:'no-store'})
   .then(async r=>{const v=await r.json();if(!r.ok)throw Error(v.error||t.connectionFailed);return v;}).then(x=>{if(live){setSlots(x.slots||[]);setDayState(x.state||'unavailable');if(x.error)setError(language==='zh'?x.error:t.notComplete);
@@ -71,7 +71,7 @@ export default function Reserve({edit=false}:{edit?:boolean}){
   }})
   .catch(e=>{if(live){setSlots([]);setError(e instanceof Error?e.message:t.connectionFailed);}}).finally(()=>{if(live)setLoading(false);});return()=>{live=false;};},[date,party,language,t.connectionFailed,t.notComplete,edit,ready,original,refreshSlots]);
  useEffect(()=>{if(!copied)return;const timer=setTimeout(()=>setCopied(false),2000);return()=>clearTimeout(timer);},[copied]);
- async function submit(e:React.FormEvent){e.preventDefault();if(!time||busy)return;
+ async function submit(e:React.FormEvent){e.preventDefault();if(!date||!time||busy)return;
   if(!/^09\d{8}$/.test(phone)){setError(t.phoneFormat);return;}
   if(!name.trim()){setError(t.requiredName);return;}
   setBusy(true);setError('');
@@ -109,6 +109,7 @@ export default function Reserve({edit=false}:{edit?:boolean}){
     <p>{t.date}：{dateText}</p>
     <p>{t.time}：{timeText}</p>
     <p>{t.phone}：{receipt.guest_phone}</p>
+    {!edit&&<p className="receipt-change-notice">{t.changeNotice}</p>}
     {edit&&<p className="receipt-change-notice">訂位資訊已更新</p>}
     {edit&&<p>備註：{notes||'無'}</p>}
    </div>
@@ -122,11 +123,11 @@ export default function Reserve({edit=false}:{edit?:boolean}){
   <div className="eyebrow">RESERVATION</div><h1>{edit?'修改訂位':t.heading}</h1>
   <form onSubmit={submit}>
    <div className="two">
-    <label className="date-field">{t.diningDate}<input type="date" required min={taiwanToday()} value={date} onChange={e=>setDate(e.target.value)}/></label>
+    <BookingCalendar date={date} onSelect={value=>{if(value!==date){setTime('');setSlots([]);setDate(value);}}}/>
     <label>{t.party}<select value={party} onChange={e=>setParty(Number(e.target.value))}>{[1,2,3,4,5].map(n=><option key={n} value={n}>{n}{t.personUnit}</option>)}</select></label>
    </div>
    <label>{t.chooseTime}</label>
-   <div className="slots">{loading?t.loading:slots.length?slots.map(s=><button type="button" className={s===time?'selected':''} key={s} onClick={()=>setTime(s)}>{s}</button>):dayState==='closed'?t.closed:dayState==='full'?t.full:t.unavailable}</div>
+   <div className="slots">{!date?'請先選擇用餐日期':loading?t.loading:slots.length?slots.map(s=><button type="button" className={s===time?'selected':''} key={s} onClick={()=>setTime(s)}>{s}</button>):dayState==='closed'?t.closed:dayState==='full'?t.full:t.unavailable}</div>
    <div className="two">
     <label>{t.contactName} <span className="required-star" aria-hidden="true">*</span><input disabled={edit} value={name} required maxLength={80} autoComplete="name" onChange={e=>setName(e.target.value)} placeholder={t.namePlaceholder}/></label>
     <label>{t.phone} <span className="required-star" aria-hidden="true">*</span>

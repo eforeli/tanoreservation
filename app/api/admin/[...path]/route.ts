@@ -25,7 +25,15 @@ function adminDbError(error:{code?:string;message:string}|null){
  return jsonError('暫時無法完成操作，請稍後再試',500);
 }
 const periodSchema=z.object({start:z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),end:z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/)});
-const specialSchema=z.object({business_date:day,is_closed:z.boolean(),notes:z.string().max(500),periods:z.array(periodSchema).max(8),closure_periods:z.array(periodSchema).max(8).default([]),mode:z.enum(['closed','partial','open'])}).superRefine((v,ctx)=>{
+const fixedSeatingTimes=z.array(z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/)).max(24).default([]);
+const fixedTimeError='固定入席時間不可重複，且須在營業時段內';
+function validSeatings(times:string[],periods:{start:string;end:string}[]){
+ return new Set(times).size===times.length && times.every(time=>
+  periods.some(period=>period.start<=time && time<period.end)
+ );
+}
+const specialSchema=z.object({business_date:day,is_closed:z.boolean(),notes:z.string().max(500),fixed_seating_times:fixedSeatingTimes,periods:z.array(periodSchema).max(8),closure_periods:z.array(periodSchema).max(8).default([]),mode:z.enum(['closed','partial','open'])}).superRefine((v,ctx)=>{
+ if(v.mode==='open'&&!validSeatings(v.fixed_seating_times,v.periods))ctx.addIssue({code:'custom',message:fixedTimeError});
  if(v.mode==='open'&&v.periods.length===0)ctx.addIssue({code:'custom',message:'特別營業至少需要一個時段'});
  if(v.mode==='partial'&&v.closure_periods.length===0)ctx.addIssue({code:'custom',message:'部分休息至少需要一個時段'});
  for(const periods of [v.periods,v.closure_periods]){
@@ -34,9 +42,10 @@ const specialSchema=z.object({business_date:day,is_closed:z.boolean(),notes:z.st
  }
 });
 const weeklyPeriod=z.object({start:z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),end:z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/)});
-const weeklySchema=z.array(z.object({weekday:z.number().int().min(0).max(6),is_closed:z.boolean(),periods:z.array(weeklyPeriod).max(8)})).length(7).superRefine((days,ctx)=>{
+const weeklySchema=z.array(z.object({weekday:z.number().int().min(0).max(6),is_closed:z.boolean(),periods:z.array(weeklyPeriod).max(8),fixed_seating_times:fixedSeatingTimes})).length(7).superRefine((days,ctx)=>{
  if(new Set(days.map(d=>d.weekday)).size!==7)ctx.addIssue({code:'custom',message:'必須提供週一至週日七天的設定'});
  days.forEach(d=>{
+  if(!d.is_closed&&!validSeatings(d.fixed_seating_times,d.periods))ctx.addIssue({code:'custom',message:fixedTimeError});
   if(!d.is_closed&&d.periods.length===0)ctx.addIssue({code:'custom',message:'營業日必須至少有一個時段'});
   const sorted=[...d.periods].sort((a,b)=>a.start.localeCompare(b.start));
   sorted.forEach((period,i)=>{
@@ -71,7 +80,7 @@ export async function GET(req:NextRequest,{params}:Context){
   const date=req.nextUrl.searchParams.get('date')||'';if(!day.safeParse(date).success)return fail('日期錯誤');
   const days=Number(req.nextUrl.searchParams.get('days')||1);if(![1,7,30].includes(days))return fail('查詢天數無效');
   const begin=`${date}T00:00:00+08:00`,end=new Date(new Date(begin).getTime()+days*86400000).toISOString();
-  const {data,error}=await s.from('reservations').select('id,confirmation_code,guest_name,guest_phone,party_size,starts_at,updated_at,status,notes,source,reservation_tables(restaurant_tables(code))').gte('starts_at',begin).lt('starts_at',end).order('starts_at');
+  const {data,error}=await s.from('reservations').select('id,confirmation_code,guest_name,guest_phone,party_size,starts_at,created_at,updated_at,status,notes,source,reservation_tables(restaurant_tables(code))').neq('status','cancelled').gte('starts_at',begin).lt('starts_at',end).order('starts_at');
   if(error)return adminDbError(error);return privateJson({items:data});
  }
  if(p[0]==='blocks'){
@@ -85,6 +94,16 @@ export async function GET(req:NextRequest,{params}:Context){
   const {data,error}=await s.from('table_blocks').select('*,restaurant_tables(code)').lt('start_at',to).or(`end_at.is.null,end_at.gt.${from}`).is('released_at',null).order('start_at');
   if(error)return adminDbError(error);return privateJson({items:data});
  }
+ if(p[0]==='special'&&p[1]==='booking-count'&&p.length===2){
+  const date=req.nextUrl.searchParams.get('date');
+  if(!day.safeParse(date).success)return fail('日期錯誤');
+  const start=date+'T00:00:00+08:00';
+  const end=new Date(new Date(start).getTime()+86400000).toISOString();
+  const {count,error}=await s.from('reservations').select('id',{count:'exact',head:true})
+   .in('status',['confirmed','seated']).gte('starts_at',start).lt('starts_at',end);
+  if(error)return adminDbError(error);
+  return privateJson({count:count??0});
+ }
  if(p[0]==='special'){const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());const {data,error}=await s.from('special_business_hours').select('*').gte('business_date',today).order('business_date');if(error)return adminDbError(error);return privateJson({items:data});}
  if(p[0]==='settings'){const [{data:settings,error},{data:hours,error:hoursError}]=await Promise.all([s.from('booking_settings').select('*').eq('id',1).single(),s.from('weekly_business_hours').select('*').order('weekday')]);if(error||hoursError)return adminDbError(error||hoursError);return privateJson({settings,hours});}
  return jsonError('路由不存在',404);
@@ -96,7 +115,7 @@ export async function POST(req:NextRequest,{params}:Context){
  if(p[0]==='reservations'&&p.length===3&&p[2]==='cancel'&&validUuid(p[1])){const {error}=await rpc('admin_cancel_booking',{p_id:p[1],p_reason:String(body.reason||''),p_actor:user.id});if(error)return adminDbError(error);return privateJson({ok:true});}
  if(p[0]==='blocks'&&p.length===1){const schema=z.object({tableCode:z.enum(['A1','A2','A3','A4','A5']),start:z.iso.datetime({offset:true}),end:z.iso.datetime({offset:true}).nullable(),reason:z.string().max(500)});const v=schema.safeParse(body);if(!v.success)return fail('鎖桌資料錯誤');const {data,error}=await rpc('admin_block_table',{p_table_code:v.data.tableCode,p_start:v.data.start,p_end:v.data.end,p_reason:v.data.reason,p_actor:user.id});if(error)return adminDbError(error);return privateJson({result:data});}
  if(p[0]==='blocks'&&p.length===3&&p[2]==='release'&&validUuid(p[1])){const {error}=await rpc('admin_unblock_table',{p_id:p[1],p_actor:user.id});if(error)return adminDbError(error);return privateJson({ok:true});}
- if(p[0]==='special'&&p.length===1){const v=specialSchema.safeParse(body);if(!v.success)return fail('特殊營業設定無效，請確認時段沒有重疊');const d=v.data;const periods=d.mode==='open'?[...d.periods].sort((a,b)=>a.start.localeCompare(b.start)):[];const closure_periods=d.mode==='partial'?[...d.closure_periods].sort((a,b)=>a.start.localeCompare(b.start)):[];const payload={business_date:d.business_date,is_closed:d.mode==='closed',notes:d.notes,periods,closure_periods,opens_at:periods[0]?.start||null,closes_at:periods[periods.length-1]?.end||null};const {error}=await db().from('special_business_hours').upsert(payload,{onConflict:'business_date'});if(error)return adminDbError(error);await db().from('admin_audit_logs').insert({actor_user_id:user.id,action:'upsert',entity_type:'special_business_hours',new_value:payload});const begin=`${d.business_date}T00:00:00+08:00`,end=new Date(new Date(begin).getTime()+86400000).toISOString();const {count}=await db().from('reservations').select('id',{count:'exact',head:true}).in('status',['confirmed','seated']).gte('starts_at',begin).lt('starts_at',end);return privateJson({ok:true,existingBookings:count||0});}
+ if(p[0]==='special'&&p.length===1){const v=specialSchema.safeParse(body);if(!v.success)return fail(v.error.issues.some(issue=>issue.message===fixedTimeError)?fixedTimeError:'特殊營業設定無效，請確認時段沒有重疊');const d=v.data;const periods=d.mode==='open'?[...d.periods].sort((a,b)=>a.start.localeCompare(b.start)):[];const closure_periods=d.mode==='partial'?[...d.closure_periods].sort((a,b)=>a.start.localeCompare(b.start)):[];const payload={business_date:d.business_date,is_closed:d.mode==='closed',notes:d.notes,periods,closure_periods,fixed_seating_times:d.mode==='open'?[...d.fixed_seating_times].sort():[],opens_at:periods[0]?.start||null,closes_at:periods[periods.length-1]?.end||null};const {error}=await db().from('special_business_hours').upsert(payload,{onConflict:'business_date'});if(error)return adminDbError(error);await db().from('admin_audit_logs').insert({actor_user_id:user.id,action:'upsert',entity_type:'special_business_hours',new_value:payload});const begin=`${d.business_date}T00:00:00+08:00`,end=new Date(new Date(begin).getTime()+86400000).toISOString();const {count}=await db().from('reservations').select('id',{count:'exact',head:true}).in('status',['confirmed','seated']).gte('starts_at',begin).lt('starts_at',end);return privateJson({ok:true,existingBookings:count||0});}
  return jsonError('路由不存在',404);
 }
 export async function PATCH(req:NextRequest,{params}:Context){
@@ -106,10 +125,10 @@ export async function PATCH(req:NextRequest,{params}:Context){
  if(p[0]==='blocks'&&p.length===2&&validUuid(p[1])){const schema=z.object({tableCode:z.enum(['A1','A2','A3','A4','A5']),start:z.iso.datetime({offset:true}),end:z.iso.datetime({offset:true}).nullable(),reason:z.string().max(500)});const v=schema.safeParse(body);if(!v.success)return fail('鎖桌資料錯誤');const {error}=await rpc('admin_edit_block_table',{p_id:p[1],p_table_code:v.data.tableCode,p_start:v.data.start,p_end:v.data.end,p_reason:v.data.reason,p_actor:user.id});if(error)return adminDbError(error);return privateJson({ok:true});}
  if(p[0]==='weekly-hours'){
   const parsed=weeklySchema.safeParse(body);
-  if(!parsed.success)return fail('常態營業時間無效，請確認七天資料完整且時段不重疊');
+  if(!parsed.success)return fail(parsed.error.issues.some(issue=>issue.message===fixedTimeError)?fixedTimeError:'常態營業時間無效，請確認七天資料完整且時段不重疊');
   const rows=parsed.data.map(d=>{
    const periods=d.is_closed?[]:[...d.periods].sort((a,b)=>a.start.localeCompare(b.start));
-   return {weekday:d.weekday,is_closed:d.is_closed,periods,opens_at:periods[0]?.start||null,closes_at:periods[periods.length-1]?.end||null};
+   return {weekday:d.weekday,is_closed:d.is_closed,periods,fixed_seating_times:d.is_closed?[]:[...d.fixed_seating_times].sort(),opens_at:periods[0]?.start||null,closes_at:periods[periods.length-1]?.end||null};
   });
   const s=db();
   const {data:previous,error:readError}=await s.from('weekly_business_hours').select('*').order('weekday');
