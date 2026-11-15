@@ -40,6 +40,13 @@ export default function Reserve({edit=false}:{edit?:boolean}){
  const [key]=useState(()=>crypto.randomUUID()),[copied,setCopied]=useState(false);
  const [original,setOriginal]=useState<ManagedBooking|null>(null),[initializing,setInitializing]=useState(edit);
  const [ready,setReady]=useState(!edit),[refreshSlots,setRefreshSlots]=useState(0);
+ useEffect(()=>{
+  if(edit)return;
+  const today=new Date();
+  const month=String(today.getMonth()+1).padStart(2,'0');
+  const day=String(today.getDate()).padStart(2,'0');
+  setDate(current=>current||`${today.getFullYear()}-${month}-${day}`);
+ },[edit]);
  useEffect(()=>{if(!edit)return;let active=true;
   fetch('/api/customer-booking',{cache:'no-store'}).then(async r=>{
    const v=await r.json();if(!r.ok)throw Error(v.error||'請先驗證訂位');
