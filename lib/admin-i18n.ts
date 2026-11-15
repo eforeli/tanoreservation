@@ -1,5 +1,11 @@
 export type AdminLanguage='es'|'zh';
 const spanish:Record<string,string>={
+ "訂位狀態已變更，請重新整理":"El estado de la reserva cambió. Actualizá la página.",
+ "該時段目前無法預約，請重新選擇":"El horario no está disponible. Elegí otro.",
+ "訂位資料或時段不符合規則":"Los datos o el horario no cumplen las reglas de reserva.",
+ "指定的餐桌不存在":"La mesa seleccionada no existe.",
+ "暫時無法完成操作，請稍後再試":"No se pudo completar la operación. Intentalo más tarde.",
+ "訂位資料已變更，請重新開啟訂位再試":"La reserva cambió. Volvé a abrirla e intentá de nuevo.",
  "Invalid login credentials": "Correo o contraseña incorrectos.",
  "Email not confirmed": "Confirmá tu correo electrónico antes de ingresar.",
  "User not found": "No se encontró el usuario.",

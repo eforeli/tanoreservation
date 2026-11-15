@@ -1,4 +1,5 @@
 import 'server-only';
+import { createHash } from 'node:crypto';
 import {createClient} from '@supabase/supabase-js';
 import {NextRequest,NextResponse} from 'next/server';
 const url=()=>{const s=process.env.NEXT_PUBLIC_SUPABASE_URL||process.env.SUPABASE_URL;if(!s)throw Error('Missing Supabase URL');return s;};
@@ -11,7 +12,15 @@ export async function adminUser(req:NextRequest){
  const {data:admin,error:err}=await db().from('admin_users').select('user_id').eq('user_id',data.user.id).maybeSingle();
  if(err||!admin)return null;return data.user;
 }
-export const jsonError=(message:string,status=400)=>NextResponse.json({error:message},{status});
+export function privateJson(payload:unknown,status=200){
+ return NextResponse.json(payload,{status,headers:{'Cache-Control':'private, no-store'}});
+}
+export const jsonError=(message:string,status=400)=>privateJson({error:message},status);
+export function bookingClientHash(req:NextRequest){
+ const header=process.env.VERCEL==='1'?'x-vercel-forwarded-for':'x-forwarded-for';
+ const address=req.headers.get(header)?.split(',')[0]?.trim()||'unknown';
+ return createHash('sha256').update(address).digest('hex');
+}
 export const safeError=(e:unknown)=>e instanceof Error?e.message:'系統發生錯誤';
 export async function rpc(name:string,args:Record<string,unknown>){return db().rpc(name,args);}
 export function toPublicError(msg:string){return /unavailable|not eligible|capacity|conflict|closed|too late|outside window/i.test(msg)?'該時段目前無法預約，請重新選擇':'訂位未完成，請稍後再試或聯絡餐廳';}

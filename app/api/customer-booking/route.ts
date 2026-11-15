@@ -2,10 +2,11 @@ import {NextRequest,NextResponse} from 'next/server';
 import {randomBytes,createHash} from 'node:crypto';
 import {z} from 'zod';
 import {booking} from '@/lib/schema';
-import {rpc,db} from '@/lib/server';
+import {rpc,db,bookingClientHash} from '@/lib/server';
 
 export const dynamic='force-dynamic';
 const COOKIE='tano_customer_booking';
+const cookieOptions={httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'strict' as const,path:'/api/customer-booking'};
 const tokenHash=(token:string)=>createHash('sha256').update(token).digest('hex');
 const fail=(error:string,status:number)=>NextResponse.json({error},{status,headers:{'Cache-Control':'no-store'}});
 const credentials=z.object({
@@ -20,7 +21,7 @@ function session(req:NextRequest){
 }
 function cookieResponse(payload:unknown,token?:string){
  const response=NextResponse.json(payload,{headers:{'Cache-Control':'no-store'}});
- if(token)response.cookies.set(COOKIE,token,{httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'strict',path:'/api/customer-booking',maxAge:900});
+ if(token)response.cookies.set(COOKIE,token,{...cookieOptions,maxAge:900});
  return response;
 }
 function originAllowed(req:NextRequest){
@@ -30,6 +31,7 @@ function originAllowed(req:NextRequest){
 function mapFailure(message:string){
  if(/session expired/.test(message))return fail('查詢已逾時，請重新輸入訂單編號與電話',401);
  if(/reservation changed/.test(message))return fail('訂位資料已變更，請重新查詢',409);
+ if(message==='duplicate phone booking day')return fail('這支手機在所選日期已有訂位，請選擇其他日期',409);
  if(/unavailable/.test(message))return fail('所選時段已無足夠座位，請選擇其他時段',409);
  if(/not eligible/.test(message))return fail('此筆訂位或選擇時段目前無法線上修改／取消',403);
  if(/rate limited/.test(message))return fail('查詢次數過多，請於 15 分鐘後再試',429);
@@ -47,14 +49,13 @@ export async function POST(req:NextRequest){
    if(error){console.error('customer reset',error.code);return fail('無法重設查詢狀態',503);}
   }
   const response=cookieResponse({success:true});
-  response.cookies.delete(COOKIE);
+  response.cookies.set(COOKIE,'',{...cookieOptions,maxAge:0,expires:new Date(0)});
   return response;
  }
  if(action==='verify'){
   const parsed=credentials.safeParse(raw);if(!parsed.success)return fail('請輸入正確的訂單編號與手機號碼',400);
   const token=randomBytes(32).toString('hex');
-  const ip=req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()||'unknown';
-  const ipHash=tokenHash(ip);
+  const ipHash=bookingClientHash(req);
   const {data,error}=await rpc('customer_verify_booking',{
    p_code:parsed.data.code,p_phone:parsed.data.phone,p_token_hash:tokenHash(token),p_ip_hash:ipHash
   });
@@ -74,14 +75,14 @@ export async function POST(req:NextRequest){
   });
   if(error){console.error('customer update',error.code);return mapFailure(error.message);}
   const response=cookieResponse({reservation:data});
-  response.cookies.delete(COOKIE);
+  response.cookies.set(COOKIE,'',{...cookieOptions,maxAge:0,expires:new Date(0)});
   return response;
  }
  if(action==='cancel'){
   const parsed=expected.safeParse(raw);if(!parsed.success)return fail('資料格式錯誤',400);
   const {data,error}=await rpc('customer_cancel_booking',{p_token_hash:hash,p_expected_updated_at:parsed.data.expectedUpdatedAt});
   if(error){console.error('customer cancel',error.code);return mapFailure(error.message);}
-  const response=cookieResponse({reservation:data});response.cookies.delete(COOKIE);return response;
+  const response=cookieResponse({reservation:data});response.cookies.set(COOKIE,'',{...cookieOptions,maxAge:0,expires:new Date(0)});return response;
  }
  return fail('不支援的操作',400);
 }

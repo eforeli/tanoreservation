@@ -11,7 +11,7 @@ Next.js 15 / TypeScript / Supabase Postgres + Auth / Vercel。依據 PRD v1.4。
 
 ## 資料庫部署
 
-1. Supabase → SQL Editor → 貼上 `supabase/migrations/001_initial.sql` → Run。
+1. 在 Supabase 依檔名順序套用 `supabase/migrations/` 中所有尚未套用的遷移。全新環境從 `001_initial.sql` 開始。
 2. Supabase → Authentication → Users，新增管理員 Email/密碼（或邀請管理員）。
 3. 複製該帳號 UUID；在 SQL Editor 執行：
 
@@ -38,20 +38,22 @@ npm run typecheck
 npm run build
 ```
 
+庫存資料庫迴歸使用全新且可丟棄的本機 PostgreSQL 17 或以上版本。測試只連線到 `127.0.0.1:55439` 的 `postgres` 資料庫，使用本機測試管理帳號 `tanoqa`。準備空白測試叢集及 Node.js 的 `pg` 套件後，執行 `node tests/inventory.integration.mjs`。測試會安裝全部遷移、在各案例前清除測試資料，並用多個資料庫連線模擬併發。
+
 ## GitHub / Vercel 部署
 
 1. 使用私人 GitHub Repo，上傳專案**不要上傳 `.env.local`**。
 2. Vercel → Add New → Project → Import Git Repository，Framework 選 Next.js。
 3. Settings → Environment Variables 分別填入 `.env.example` 的三個值；設定 Production、Preview 各自資料庫，避免測試資料污染正式資料。
-4. Deploy；在部署後的 `/reserve` 與 `/admin` 測試。
+4. 先套用資料庫遷移，再部署應用程式。部署完成後測試 `/reserve` 與 `/admin`。
 5. LINE 官方帳號「我要預約」連結指向 `https://你的網域/reserve`。
 6. 若原始 TANO 官網也是 Vercel 部署，避免直接假設可共用路由：可先使用 `booking.你的網域` 子網域或本專案 Vercel 網址，再決定是否整併原網站。
 
 ## 技術說明
 
 - 公開 `/api/availability` 只返回時間，不公開桌號或個資。
-- 公開建立訂位直接呼叫 DB RPC；RPC 以營業日 advisory transaction lock 序列化分桌及新增。
-- 跨桌共享椅資源以每個事件邊界檢查最大同時占用，採用餐 90 分鐘；餐桌占用 110 分鐘。
+- 公開建立訂位直接呼叫 DB RPC；RPC 以交易層級的全店 advisory lock 序列化訂位、鎖桌與營業設定寫入，包含跨日占用。
+- 跨桌共享椅資源以每個事件邊界檢查最大同時占用，加椅占用依用餐分鐘計算，A1／A3 重疊用餐期間最多一桌加椅。餐桌占用依後台的用餐及緩衝分鐘計算，僅更新備註時保留原釋桌時間。
 - 後台 Supabase Auth 登入 + `admin_users` 白名單，每一 API 呼叫都重新驗證 token。
 - 全部業務資料表 RLS 開啟且 anon/authenticated 沒有 table 存取權，service role 僅存 Server。
 - API 時間與資料庫採 UTC ISO，營運計算以 Asia/Taipei。

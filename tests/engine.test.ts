@@ -12,3 +12,9 @@ test('same table at 18:30 not reusable, at 19:00 reusable',()=>{const rows=[row(
 test('blocked table not assigned',()=>assert.equal(chooseTable(2,iso('18:00'),[],[{table_code:'A2',start_at:iso('17:00'),end_at:iso('20:00')}],tables,settings),'A1'));
 test('closed-end block release becomes available',()=>assert.equal(chooseTable(2,iso('20:00'),[],[{table_code:'A2',start_at:iso('17:00'),end_at:iso('20:00')}],tables,settings),'A2'));
 test('two simultaneous starts max, third rejected',()=>assert.equal(chooseTable(2,iso('17:00'),[row('A2','17:00',2),row('A1','17:00',2)],[],tables,settings),null));
+test('only one small table can use an extra chair during overlapping meals',()=>{
+ const smallTables=tables.filter(table=>table.code==='A1'||table.code==='A3');
+ const rows=[row('A1','17:00',3)];
+ assert.equal(chooseTable(3,iso('17:30'),rows,[],smallTables,settings),null);
+ assert.equal(chooseTable(3,iso('18:30'),rows,[],smallTables,settings),'A3');
+});

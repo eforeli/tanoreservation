@@ -25,7 +25,12 @@ export function chooseTable(party:number,startISO:string,rows:Occupancy[],blocks
  for(const table of orderTables(party,tables)){
   if(rows.some(r=>r.table_code===table.code && overlaps(start,finish,t(r.starts_at),t(r.table_released_at))))continue;
   if(blocks.some(b=>b.table_code===table.code && !b.released_at && overlaps(start,finish,t(b.start_at),b.end_at?t(b.end_at):Infinity)))continue;
-  if(!chairsFeasible(start,chairFinish,Math.max(0,party-table.base_capacity),rows,tables,settings.extra_chairs_total))continue;
+  const chairsNeeded=Math.max(0,party-table.base_capacity);
+  if(chairsNeeded>0 && (table.code==='A1'||table.code==='A3') && rows.some(row=>
+    (row.table_code==='A1'||row.table_code==='A3') && row.table_code!==table.code &&
+    row.party_size>2 && overlaps(start,chairFinish,t(row.starts_at),t(row.dining_ends_at))
+  ))continue;
+  if(!chairsFeasible(start,chairFinish,chairsNeeded,rows,tables,settings.extra_chairs_total))continue;
   return table.code;
  }return null;
 }
