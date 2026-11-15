@@ -243,6 +243,13 @@ input[type="date"],input[type="time"]{width:100%;min-width:0;max-width:100%;-web
   .booking-entry > .small { margin: 20px 0 0; }
 }
 
+@media (max-width: 650px) and (max-height: 680px) {
+  .booking-entry { padding-block: 16px; }
+  .booking-entry h1 { font-size: 22px; margin-block: 6px 8px; }
+  .booking-entry-intro .muted { font-size: 14px; margin-block: 0 12px; }
+  .booking-entry > .small { margin-top: 12px; }
+}
+
 
 /* V1.8 reservation log */
 .reservation-log-filters{display:grid;grid-template-columns:repeat(5,minmax(130px,1fr));gap:12px;align-items:end;margin:20px 0}
