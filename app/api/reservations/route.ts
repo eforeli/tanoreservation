@@ -1,3 +1,4 @@
+import {WALK_IN_MESSAGE} from '@/lib/constants';
 import {NextRequest,NextResponse} from 'next/server';
 import {booking} from '@/lib/schema';
 import {rpc,jsonError,toPublicError,privateJson,bookingClientHash} from '@/lib/server';
@@ -12,6 +13,7 @@ export async function POST(req:NextRequest){
  if(allowed!==true)return NextResponse.json({error:'訂位嘗試次數過多，請稍後再試'},{status:429,headers:{'Cache-Control':'private, no-store','Retry-After':'900'}});
  const {data,error}=await rpc('create_booking',{p_date:b.date,p_time:b.time,p_party_size:b.partySize,p_name:b.name,p_phone:b.phone,p_notes:b.notes,p_source:'web',p_key:b.idempotencyKey,p_actor:null});
  if(error){
+  if(error.message==='booking day cutoff')return jsonError(error.details||WALK_IN_MESSAGE,409);
   if(error.message.includes('duplicate phone booking day')){
    return NextResponse.json({error:'這隻手機在當天已有訂位，請直接修改訂位資訊，避免重複訂位',code:'DUPLICATE_PHONE_DAY'},{status:409,headers:{'Cache-Control':'no-store'}});
   }

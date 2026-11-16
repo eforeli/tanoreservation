@@ -1,3 +1,4 @@
+import {WALK_IN_MESSAGE} from '@/lib/constants';
 import {NextRequest,NextResponse} from 'next/server';
 import {randomBytes,createHash} from 'node:crypto';
 import {z} from 'zod';
@@ -28,7 +29,8 @@ function originAllowed(req:NextRequest){
  const origin=req.headers.get('origin');
  return !!origin && origin===req.nextUrl.origin;
 }
-function mapFailure(message:string){
+function mapFailure(message:string,details?:string){
+ if(message==='booking day cutoff')return fail(details||WALK_IN_MESSAGE,409);
  if(/session expired/.test(message))return fail('查詢已逾時，請重新輸入訂單編號與電話',401);
  if(/reservation changed/.test(message))return fail('訂位資料已變更，請重新查詢',409);
  if(message==='duplicate phone booking day')return fail('這支手機在所選日期已有訂位，請選擇其他日期',409);
@@ -73,7 +75,7 @@ export async function POST(req:NextRequest){
    p_token_hash:hash,p_date:b.date,p_time:b.time,p_party:b.partySize,
    p_name:current.guest_name,p_phone:current.guest_phone,p_notes:b.notes,p_expected_updated_at:b.expectedUpdatedAt
   });
-  if(error){console.error('customer update',error.code);return mapFailure(error.message);}
+  if(error){console.error('customer update',error.code);return mapFailure(error.message,error.details);}
   const response=cookieResponse({reservation:data});
   response.cookies.set(COOKIE,'',{...cookieOptions,maxAge:0,expires:new Date(0)});
   return response;
@@ -95,7 +97,11 @@ export async function GET(req:NextRequest){
   if(!z.iso.date().safeParse(date).success||!Number.isInteger(party)||party<1||party>5)return fail('日期或人數不正確',400);
   const {data,error}=await rpc('customer_available_slots',{p_token_hash:hash,p_date:date,p_party_size:party});
   if(error)return mapFailure(error.message);
-  return cookieResponse({slots:data||[],state:(data||[]).length?'available':'unavailable'});
+  const slots=data||[];
+  if(slots.length)return cookieResponse({slots,state:'available'});
+  const {data:state,error:stateError}=await rpc('booking_day_status',{p_date:date,p_party_size:party});
+  if(stateError)return mapFailure(stateError.message);
+  return cookieResponse({slots,state:state?.state==='walk_in'?'walk_in':'unavailable',notice:state?.notice});
  }
  const {data,error}=await rpc('customer_get_booking',{p_token_hash:hash});
  if(error)return mapFailure(error.message);

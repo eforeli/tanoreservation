@@ -1,5 +1,5 @@
 'use client';
-import {localDay,TZ} from '@/lib/constants';
+import {localDay,TZ,WALK_IN_MESSAGE} from '@/lib/constants';
 import {useEffect,useState} from 'react';
 import {useLanguage} from '@/components/SiteShell';
 import Link from 'next/link';
@@ -36,7 +36,8 @@ const strings={
 
 export default function Reserve({edit=false}:{edit?:boolean}){
  const {language}=useLanguage();const t=strings[language];
- const [date,setDate]=useState(''),[party,setParty]=useState(2),[slots,setSlots]=useState<string[]>([]),[time,setTime]=useState(''),[dayState,setDayState]=useState<'closed'|'full'|'unavailable'|'available'>('unavailable'),[name,setName]=useState(''),[phone,setPhone]=useState(''),[notes,setNotes]=useState('');
+ const [date,setDate]=useState(''),[party,setParty]=useState(2),[slots,setSlots]=useState<string[]>([]),[time,setTime]=useState(''),[dayState,setDayState]=useState<'closed'|'full'|'unavailable'|'available'|'walk_in'>('unavailable'),[name,setName]=useState(''),[phone,setPhone]=useState(''),[notes,setNotes]=useState('');
+ const [dayNotice,setDayNotice]=useState('');
  const [busy,setBusy]=useState(false),[loading,setLoading]=useState(false),[error,setError]=useState(''),[receipt,setReceipt]=useState<Receipt|null>(null),[duplicateDialog,setDuplicateDialog]=useState(false);
  const [key]=useState(()=>crypto.randomUUID()),[copied,setCopied]=useState(false);
  const [original,setOriginal]=useState<ManagedBooking|null>(null),[initializing,setInitializing]=useState(edit);
@@ -63,7 +64,7 @@ export default function Reserve({edit=false}:{edit?:boolean}){
  useEffect(()=>{if(!ready||!date)return;let live=true;setTime('');setError('');setLoading(true);fetch(edit?
   `/api/customer-booking?mode=slots&date=${date}&partySize=${party}`:
   `/api/availability?date=${date}&partySize=${party}`,{cache:'no-store'})
-  .then(async r=>{const v=await r.json();if(!r.ok)throw Error(v.error||t.connectionFailed);return v;}).then(x=>{if(live){setSlots(x.slots||[]);setDayState(x.state||'unavailable');if(x.error)setError(language==='zh'?x.error:t.notComplete);
+  .then(async r=>{const v=await r.json();if(!r.ok)throw Error(v.error||t.connectionFailed);return v;}).then(x=>{if(live){setSlots(x.slots||[]);setDayState(x.state||'unavailable');setDayNotice(x.notice||'');if(x.error)setError(language==='zh'?x.error:t.notComplete);
    if(edit&&original){
     const when=new Date(original.starts_at);
     const originalDay=localDay(when);
@@ -128,11 +129,12 @@ export default function Reserve({edit=false}:{edit?:boolean}){
   <div className="eyebrow">RESERVATION</div><h1>{edit?'修改訂位':t.heading}</h1>
   <form onSubmit={submit}>
    <div className="two">
-    <BookingCalendar date={date} onSelect={value=>{if(value!==date){setTime('');setSlots([]);setDate(value);}}}/>
+    <BookingCalendar date={date} onSelect={value=>{if(value!==date){setTime('');setSlots([]);setDayState('unavailable');setDayNotice('');setDate(value);}}}/>
     <label>{t.party}<select value={party} onChange={e=>setParty(Number(e.target.value))}>{[1,2,3,4,5].map(n=><option key={n} value={n}>{n}{t.personUnit}</option>)}</select></label>
    </div>
    <label>{t.chooseTime}</label>
-   <div className="slots">{!date?'請先選擇用餐日期':loading?t.loading:slots.length?slots.map(s=><button type="button" className={s===time?'selected':''} key={s} onClick={()=>setTime(s)}>{s}</button>):dayState==='closed'?t.closed:dayState==='full'?t.full:t.unavailable}</div>
+   {dayState==='walk_in'&&date&&!loading&&<p role="status" className="notice">{dayNotice||WALK_IN_MESSAGE}</p>}
+   <div className="slots">{!date?'請先選擇用餐日期':loading?t.loading:slots.length?slots.map(s=><button type="button" className={s===time?'selected':''} key={s} onClick={()=>setTime(s)}>{s}</button>):dayState==='walk_in'?null:dayState==='closed'?t.closed:dayState==='full'?t.full:t.unavailable}</div>
    <div className="two">
     <label>{t.contactName} <span className="required-star" aria-hidden="true">*</span><input disabled={edit} value={name} required maxLength={80} autoComplete="name" onChange={e=>setName(e.target.value)} placeholder={t.namePlaceholder}/></label>
     <label>{t.phone} <span className="required-star" aria-hidden="true">*</span>
