@@ -3,8 +3,8 @@ import {useEffect,useState,useCallback} from 'react';
 import {createClient} from '@supabase/supabase-js';
 import ReservationLog from '@/components/ReservationLog';
 import {adminText,type AdminLanguage} from '@/lib/admin-i18n';
+import {localDay as dateToday,TZ,dateTimeTaipei} from '@/lib/constants';
 const supa=()=>createClient(process.env.NEXT_PUBLIC_SUPABASE_URL||'',process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY||process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||'');
-const dateToday=()=>{const parts=new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const part=(type:string)=>parts.find(p=>p.type===type)?.value||'';return `${part('year')}-${part('month')}-${part('day')}`;};
 type R={id:string;confirmation_code:string;guest_name:string;guest_phone:string;party_size:number;starts_at:string;created_at:string;updated_at:string;status:string;notes:string;source:string;reservation_tables:{restaurant_tables:{code:string}|null}|null};
 type Block={id:string;start_at:string;end_at:string|null;reason:string;restaurant_tables:{code:string}|null};
 type Special={fixed_seating_times?:string[];id:string;business_date:string;is_closed:boolean;notes:string;periods:{start:string;end:string}[]|null;closure_periods:{start:string;end:string}[]|null;opens_at:string|null;closes_at:string|null};
@@ -40,10 +40,10 @@ function SeatingEditor({times,firstStart,onChange,t}:{times:string[];firstStart:
 type Settings={dining_minutes:number;buffer_minutes:number;slot_interval_minutes:number;booking_window_days:number;min_advance_minutes:number;extra_chairs_total:number;max_arrivals_per_slot:number;max_online_party_size:number;last_seating_offset_minutes:number};
 const fields:(keyof Settings)[]=['dining_minutes','buffer_minutes','slot_interval_minutes','booking_window_days','min_advance_minutes','extra_chairs_total','max_arrivals_per_slot','max_online_party_size','last_seating_offset_minutes'];
 const labels=['用餐分鐘','緩衝分鐘','時段間隔分鐘','開放預約天數','最少提前分鐘','加椅總數','每時段新入席組數','最大線上人數','打烊前最晚入席分鐘'];
-const taipei=(s:string)=>new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(s));
-const localDate=(s:string)=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(s));
+const taipei=(s:string)=>new Intl.DateTimeFormat('zh-TW',{timeZone:TZ,hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(s));
+const localDate=(s:string)=>dateToday(new Date(s));
 const displayBookingDate=(s:string)=>{const day=localDate(s);const weekday=['日','一','二','三','四','五','六'][new Date(`${day}T12:00:00+08:00`).getUTCDay()];return `${day} (${weekday}）`;};
-const isoTime=(date:string,time:string)=>new Date(`${date}T${time}:00+08:00`).toISOString();
+const isoTime=(date:string,time:string)=>new Date(dateTimeTaipei(date,time)).toISOString();
 export default function Admin(){
  const [language,setLanguage]=useState<AdminLanguage>('es');
  const t=(value:string)=>adminText(value,language);
@@ -93,7 +93,7 @@ export default function Admin(){
   });
   if(saved)closeSpecial();
  }
- function edit(r:R){const d=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(r.starts_at));setForm({date:d,time:taipei(r.starts_at),partySize:r.party_size,name:r.guest_name,phone:r.guest_phone,notes:r.notes,source:r.source,status:r.status});setEditVersion(r.updated_at);setEditId(r.id);setTab('new');}
+ function edit(r:R){const d=localDate(r.starts_at);setForm({date:d,time:taipei(r.starts_at),partySize:r.party_size,name:r.guest_name,phone:r.guest_phone,notes:r.notes,source:r.source,status:r.status});setEditVersion(r.updated_at);setEditId(r.id);setTab('new');}
  async function cancel(r:R){if(!confirm(language==='es'?`¿Querés cancelar la reserva ${r.confirmation_code} de ${r.guest_name}?`:`確定取消 ${r.guest_name} ${r.confirmation_code} 的訂位？`))return;await act(()=>request(`reservations/${r.id}/cancel`,'POST',{reason:'管理員取消'}));}
  function updateWeeklyDay(weekday:number,patch:Partial<WeeklyDay>){setWeeklyHours(prev=>prev.map(d=>d.weekday===weekday?{...d,...patch}:d));}
  function updateWeeklyPeriod(weekday:number,index:number,field:keyof WeeklyPeriod,value:string){setWeeklyHours(prev=>prev.map(d=>d.weekday===weekday?{...d,periods:d.periods.map((p,i)=>i===index?{...p,[field]:value}:p)}:d));}
@@ -209,7 +209,7 @@ export default function Admin(){
    <div className="tablewrap"><table className="responsive-table booking-detail-table"><thead><tr>{[t('日期'),t("入席"),t("人數"),t("客人"),t("電話"),t("桌位"),t("訂位編號"),t("備註"),t("操作")].map(x=><th key={x}>{x}</th>)}</tr></thead><tbody>{shown.map(r=><tr key={r.id}><td data-label={t("日期")}>{language==='es'?localDate(r.starts_at):displayBookingDate(r.starts_at)}</td><td data-label={t("入席")}>{taipei(r.starts_at)}</td><td data-label={t("人數")}>{r.party_size}</td><td data-label={t("客人")}>{r.guest_name}</td><td data-label={t("電話")}><a href={`tel:${r.guest_phone}`}>{r.guest_phone}</a></td><td data-label={t("桌位")}>{r.reservation_tables?.restaurant_tables?.code||'—'}</td><td data-label={t("訂位編號")}><div className="reservation-log-code"><strong>{r.confirmation_code}</strong><small>{t("首次成立：")}{r.created_at?<time dateTime={r.created_at}>{localDate(r.created_at)} {taipei(r.created_at)}</time>: "—"}</small></div></td><td data-label={t("備註")}>{r.notes||'—'}</td><td data-label={t("操作")}><div className="actions"><button onClick={()=>edit(r)} disabled={r.status==='cancelled'}>{t("編輯")}</button><button onClick={()=>cancel(r)} disabled={r.status==='cancelled'}>{t("取消")}</button></div></td></tr>)}</tbody></table>{loading?t('載入中…'):!shown.length?t('所選期間沒有訂位'):''}</div></>}
   {tab==='tables'&&<>
   <div className="toolbar block-table-header"><h2>{t("桌位時間軸（訂位／鎖定）")}</h2></div>
-  <div className="toolbar"><label>{t("查看日期")}<input type="date" value={tableDate} onChange={e=>setTableDate(e.target.value)}/></label></div>
+  <div className="toolbar table-date-toolbar"><label>{t("查看日期")}<input type="date" value={tableDate} onChange={e=>setTableDate(e.target.value)}/></label></div>
   <div className="grid-table">{['A1','A2','A3','A4','A5'].map(code=>{const timeline=[
    ...tableItems.filter(r=>r.reservation_tables?.restaurant_tables?.code===code&&r.status!=='cancelled'&&localDate(r.starts_at)===tableDate).map(r=>({type:'booking' as const,key:r.id,start:r.starts_at,reservation:r})),
    ...blocks.filter(b=>b.restaurant_tables?.code===code).map(b=>({type:'block' as const,key:b.id,start:b.start_at,block:b}))

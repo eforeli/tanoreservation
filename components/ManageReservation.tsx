@@ -1,8 +1,9 @@
 'use client';
+import {TZ} from '@/lib/constants';
 import {useEffect,useState} from 'react';
 import Link from 'next/link';
 type Reservation={confirmation_code:string;guest_name:string;guest_phone:string;party_size:number;starts_at:string;notes:string;status:string;updated_at:string;can_manage:boolean};
-const format=(iso:string)=>new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit',weekday:'short',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(iso));
+const format=(iso:string)=>new Intl.DateTimeFormat('zh-TW',{timeZone:TZ,year:'numeric',month:'2-digit',day:'2-digit',weekday:'short',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(iso));
 export default function ManageReservation(){
  const [code,setCode]=useState(''),[phone,setPhone]=useState('');
  const [booking,setBooking]=useState<Reservation|null>(null);

@@ -131,7 +131,9 @@ input[type="date"],input[type="time"]{width:100%;min-width:0;max-width:100%;-web
  .block-list-heading h2{font-size:22px}
  .block-list-heading button{min-height:44px}
  .settings-subtabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
- .settings-subtabs button{padding:10px 8px;font-size:14px}
+ .settings-subtabs button{min-width:0;width:100%;padding:10px 8px;font-size:14px;line-height:1.35;white-space:normal;overflow-wrap:anywhere}
+ .table-date-toolbar input[type="date"]{display:block;width:100%;min-width:0;max-width:100%;min-height:44px;font-size:16px;-webkit-appearance:none;appearance:none}
+ .table-date-toolbar input[type="date"]::-webkit-date-and-time-value{text-align:left;margin:0}
  .weekly-day{padding:14px 12px}
  .weekly-day-header{gap:8px}
  .weekly-day-state select{min-width:95px}

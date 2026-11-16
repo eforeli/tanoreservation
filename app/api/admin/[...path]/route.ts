@@ -2,6 +2,7 @@ import {NextRequest} from 'next/server';
 import {adminUser,db,jsonError,rpc,privateJson} from '@/lib/server';
 import {booking,day,settingsSchema} from '@/lib/schema';
 import {z} from 'zod';
+import {localDay,dateTimeTaipei} from '@/lib/constants';
 export const dynamic='force-dynamic';
 type Context={params:Promise<{path:string[]}>};
 const validUuid=(s:string)=>z.uuid().safeParse(s).success;
@@ -67,8 +68,8 @@ export async function GET(req:NextRequest,{params}:Context){
    ||(dateFrom&&!day.safeParse(dateFrom).success)||(dateTo&&!day.safeParse(dateTo).success)
    ||(dateFrom&&dateTo&&dateFrom>dateTo))return fail('篩選條件無效');
   let query=s.from('reservation_change_log').select('*',{count:'exact'}).order('changed_at',{ascending:false}).order('id',{ascending:false});
-  if(dateFrom)query=query.gte('changed_at',new Date(dateFrom+'T00:00:00+08:00').toISOString());
-  if(dateTo)query=query.lt('changed_at',new Date(new Date(dateTo+'T00:00:00+08:00').getTime()+86400000).toISOString());
+  if(dateFrom)query=query.gte('changed_at',new Date(dateTimeTaipei(dateFrom,'00:00')).toISOString());
+  if(dateTo)query=query.lt('changed_at',new Date(new Date(dateTimeTaipei(dateTo,'00:00')).getTime()+86400000).toISOString());
   if(code)query=query.ilike('confirmation_code','%'+code.replace(/[%_,]/g,'')+'%');
   if(phone)query=query.ilike('guest_phone','%'+phone.replace(/[%_,]/g,'')+'%');
   if(actor!=='all')query=query.eq('actor',actor);
@@ -79,7 +80,7 @@ export async function GET(req:NextRequest,{params}:Context){
  if(p[0]==='reservations'){
   const date=req.nextUrl.searchParams.get('date')||'';if(!day.safeParse(date).success)return fail('日期錯誤');
   const days=Number(req.nextUrl.searchParams.get('days')||1);if(![1,7,30].includes(days))return fail('查詢天數無效');
-  const begin=`${date}T00:00:00+08:00`,end=new Date(new Date(begin).getTime()+days*86400000).toISOString();
+  const begin=dateTimeTaipei(date,'00:00'),end=new Date(new Date(begin).getTime()+days*86400000).toISOString();
   const {data,error}=await s.from('reservations').select('id,confirmation_code,guest_name,guest_phone,party_size,starts_at,created_at,updated_at,status,notes,source,reservation_tables(restaurant_tables(code))').neq('status','cancelled').gte('starts_at',begin).lt('starts_at',end).order('starts_at');
   if(error)return adminDbError(error);return privateJson({items:data});
  }
@@ -90,7 +91,7 @@ export async function GET(req:NextRequest,{params}:Context){
    if(error)return adminDbError(error);return privateJson({items:data});
   }
   const date=req.nextUrl.searchParams.get('date')||'';if(!day.safeParse(date).success)return fail('日期錯誤');
-  const from=`${date}T00:00:00+08:00`,to=new Date(new Date(from).getTime()+86400000).toISOString();
+  const from=dateTimeTaipei(date,'00:00'),to=new Date(new Date(from).getTime()+86400000).toISOString();
   const {data,error}=await s.from('table_blocks').select('*,restaurant_tables(code)').lt('start_at',to).or(`end_at.is.null,end_at.gt.${from}`).is('released_at',null).order('start_at');
   if(error)return adminDbError(error);return privateJson({items:data});
  }
@@ -104,7 +105,7 @@ export async function GET(req:NextRequest,{params}:Context){
   if(error)return adminDbError(error);
   return privateJson({count:count??0});
  }
- if(p[0]==='special'){const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());const {data,error}=await s.from('special_business_hours').select('*').gte('business_date',today).order('business_date');if(error)return adminDbError(error);return privateJson({items:data});}
+ if(p[0]==='special'){const today=localDay();const {data,error}=await s.from('special_business_hours').select('*').gte('business_date',today).order('business_date');if(error)return adminDbError(error);return privateJson({items:data});}
  if(p[0]==='settings'){const [{data:settings,error},{data:hours,error:hoursError}]=await Promise.all([s.from('booking_settings').select('*').eq('id',1).single(),s.from('weekly_business_hours').select('*').order('weekday')]);if(error||hoursError)return adminDbError(error||hoursError);return privateJson({settings,hours});}
  return jsonError('路由不存在',404);
 }
@@ -115,7 +116,7 @@ export async function POST(req:NextRequest,{params}:Context){
  if(p[0]==='reservations'&&p.length===3&&p[2]==='cancel'&&validUuid(p[1])){const {error}=await rpc('admin_cancel_booking',{p_id:p[1],p_reason:String(body.reason||''),p_actor:user.id});if(error)return adminDbError(error);return privateJson({ok:true});}
  if(p[0]==='blocks'&&p.length===1){const schema=z.object({tableCode:z.enum(['A1','A2','A3','A4','A5']),start:z.iso.datetime({offset:true}),end:z.iso.datetime({offset:true}).nullable(),reason:z.string().max(500)});const v=schema.safeParse(body);if(!v.success)return fail('鎖桌資料錯誤');const {data,error}=await rpc('admin_block_table',{p_table_code:v.data.tableCode,p_start:v.data.start,p_end:v.data.end,p_reason:v.data.reason,p_actor:user.id});if(error)return adminDbError(error);return privateJson({result:data});}
  if(p[0]==='blocks'&&p.length===3&&p[2]==='release'&&validUuid(p[1])){const {error}=await rpc('admin_unblock_table',{p_id:p[1],p_actor:user.id});if(error)return adminDbError(error);return privateJson({ok:true});}
- if(p[0]==='special'&&p.length===1){const v=specialSchema.safeParse(body);if(!v.success)return fail(v.error.issues.some(issue=>issue.message===fixedTimeError)?fixedTimeError:'特殊營業設定無效，請確認時段沒有重疊');const d=v.data;const periods=d.mode==='open'?[...d.periods].sort((a,b)=>a.start.localeCompare(b.start)):[];const closure_periods=d.mode==='partial'?[...d.closure_periods].sort((a,b)=>a.start.localeCompare(b.start)):[];const payload={business_date:d.business_date,is_closed:d.mode==='closed',notes:d.notes,periods,closure_periods,fixed_seating_times:d.mode==='open'?[...d.fixed_seating_times].sort():[],opens_at:periods[0]?.start||null,closes_at:periods[periods.length-1]?.end||null};const {error}=await db().from('special_business_hours').upsert(payload,{onConflict:'business_date'});if(error)return adminDbError(error);await db().from('admin_audit_logs').insert({actor_user_id:user.id,action:'upsert',entity_type:'special_business_hours',new_value:payload});const begin=`${d.business_date}T00:00:00+08:00`,end=new Date(new Date(begin).getTime()+86400000).toISOString();const {count}=await db().from('reservations').select('id',{count:'exact',head:true}).in('status',['confirmed','seated']).gte('starts_at',begin).lt('starts_at',end);return privateJson({ok:true,existingBookings:count||0});}
+ if(p[0]==='special'&&p.length===1){const v=specialSchema.safeParse(body);if(!v.success)return fail(v.error.issues.some(issue=>issue.message===fixedTimeError)?fixedTimeError:'特殊營業設定無效，請確認時段沒有重疊');const d=v.data;const periods=d.mode==='open'?[...d.periods].sort((a,b)=>a.start.localeCompare(b.start)):[];const closure_periods=d.mode==='partial'?[...d.closure_periods].sort((a,b)=>a.start.localeCompare(b.start)):[];const payload={business_date:d.business_date,is_closed:d.mode==='closed',notes:d.notes,periods,closure_periods,fixed_seating_times:d.mode==='open'?[...d.fixed_seating_times].sort():[],opens_at:periods[0]?.start||null,closes_at:periods[periods.length-1]?.end||null};const {error}=await db().from('special_business_hours').upsert(payload,{onConflict:'business_date'});if(error)return adminDbError(error);await db().from('admin_audit_logs').insert({actor_user_id:user.id,action:'upsert',entity_type:'special_business_hours',new_value:payload});const begin=dateTimeTaipei(d.business_date,'00:00'),end=new Date(new Date(begin).getTime()+86400000).toISOString();const {count}=await db().from('reservations').select('id',{count:'exact',head:true}).in('status',['confirmed','seated']).gte('starts_at',begin).lt('starts_at',end);return privateJson({ok:true,existingBookings:count||0});}
  return jsonError('路由不存在',404);
 }
 export async function PATCH(req:NextRequest,{params}:Context){

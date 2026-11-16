@@ -1,4 +1,5 @@
 'use client';
+import {TZ} from '@/lib/constants';
 import {useCallback,useEffect,useState} from 'react';
 import {adminText,type AdminLanguage} from '@/lib/admin-i18n';
 
@@ -10,7 +11,7 @@ type LogRow={
 };
 type Filters={from:string;to:string;code:string;phone:string;actor:'all'|'customer'|'admin'};
 const empty:Filters={from:'',to:'',code:'',phone:'',actor:'all'};
-const display=(value:string|null)=>value?new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(value)).replace(/\//g,'/'):'—';
+const display=(value:string|null)=>value?new Intl.DateTimeFormat('zh-TW',{timeZone:TZ,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(value)).replace(/\//g,'/'):'—';
 function bookingSummary(time:string|null,party:number|null,language:AdminLanguage){return time?`${display(time)} · ${party??'—'} ${adminText('人',language)}`:'—';}
 export default function ReservationLog({request,language}:{request:(path:string,method?:string,body?:unknown)=>Promise<any>;language:AdminLanguage}){
  const t=(value:string)=>adminText(value,language);

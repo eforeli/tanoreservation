@@ -1,4 +1,5 @@
 'use client';
+import {localDay,TZ} from '@/lib/constants';
 import {useEffect,useState} from 'react';
 import {useLanguage} from '@/components/SiteShell';
 import Link from 'next/link';
@@ -42,10 +43,7 @@ export default function Reserve({edit=false}:{edit?:boolean}){
  const [ready,setReady]=useState(!edit),[refreshSlots,setRefreshSlots]=useState(0);
  useEffect(()=>{
   if(edit)return;
-  const today=new Date();
-  const month=String(today.getMonth()+1).padStart(2,'0');
-  const day=String(today.getDate()).padStart(2,'0');
-  setDate(current=>current||`${today.getFullYear()}-${month}-${day}`);
+  setDate(current=>current||localDay());
  },[edit]);
  useEffect(()=>{if(!edit)return;let active=true;
   fetch('/api/customer-booking',{cache:'no-store'}).then(async r=>{
@@ -54,7 +52,7 @@ export default function Reserve({edit=false}:{edit?:boolean}){
   }).then(r=>{if(!active)return;
    if(!r.can_manage){setError('此筆訂位目前無法線上修改');return;}
    const when=new Date(r.starts_at);
-   const d=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).format(when);
+   const d=localDay(when);
    setOriginal(r);setDate(d);setParty(r.party_size);setName(r.guest_name);
    setPhone(r.guest_phone);setNotes(r.notes||'');
    setReady(true);
@@ -68,8 +66,8 @@ export default function Reserve({edit=false}:{edit?:boolean}){
   .then(async r=>{const v=await r.json();if(!r.ok)throw Error(v.error||t.connectionFailed);return v;}).then(x=>{if(live){setSlots(x.slots||[]);setDayState(x.state||'unavailable');if(x.error)setError(language==='zh'?x.error:t.notComplete);
    if(edit&&original){
     const when=new Date(original.starts_at);
-    const originalDay=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).format(when);
-    const originalTime=new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Taipei',hour:'2-digit',minute:'2-digit',hour12:false}).format(when);
+    const originalDay=localDay(when);
+    const originalTime=new Intl.DateTimeFormat('en-GB',{timeZone:TZ,hour:'2-digit',minute:'2-digit',hour12:false}).format(when);
     if(date===originalDay&&party===original.party_size){
      setSlots(prev=>prev.includes(originalTime)?prev:[...prev,originalTime].sort());
      setTime(originalTime);
@@ -102,10 +100,10 @@ export default function Reserve({edit=false}:{edit?:boolean}){
  if(edit&&!original)return <section className="panel narrow"><h1>無法修改訂位</h1><p role="alert" className="error">{error||'請重新查詢訂位'}</p><a href="/reserve/manage">返回查詢訂位</a></section>;
  if(receipt){
   const when=new Date(receipt.starts_at);
-  const calendarDate=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).format(when).replace(/-/g,'/');
-  const weekday=new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Taipei',weekday:'short'}).format(when);
+  const calendarDate=localDay(when).replace(/-/g,'/');
+  const weekday=new Intl.DateTimeFormat('en-US',{timeZone:TZ,weekday:'short'}).format(when);
   const dateText=`${calendarDate} (${weekday}.)`;
-  const timeText=new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Taipei',hour:'2-digit',minute:'2-digit',hour12:false}).format(when);
+  const timeText=new Intl.DateTimeFormat('en-GB',{timeZone:TZ,hour:'2-digit',minute:'2-digit',hour12:false}).format(when);
   const copyText=[`${t.bookingCode}：${receipt.confirmation_code}`,`${t.guest}：${receipt.guest_name}`,`${t.persons}：${receipt.party_size}`,`${t.date}：${dateText}`,`${t.time}：${timeText}`,`${t.phone}：${receipt.guest_phone}`,'',edit?'訂位資訊已更新':t.changeNotice].join('\n');
   return <section className="panel narrow">
    <div className="eyebrow">BOOKING CONFIRMED</div><h1>{edit?'訂位修改成功！':t.bookingConfirmed}</h1>
