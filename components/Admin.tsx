@@ -38,8 +38,8 @@ function SeatingEditor({times,firstStart,onChange,t}:{times:string[];firstStart:
  </div>;
 }
 type Settings={booking_cutoff_mode?:'minutes'|'opening';dining_minutes:number;buffer_minutes:number;slot_interval_minutes:number;booking_window_days:number;min_advance_minutes:number;extra_chairs_total:number;max_arrivals_per_slot:number;max_online_party_size:number;last_seating_offset_minutes:number};
-const fields:(Exclude<keyof Settings,'booking_cutoff_mode'>)[]=['dining_minutes','buffer_minutes','slot_interval_minutes','booking_window_days','min_advance_minutes','extra_chairs_total','max_arrivals_per_slot','max_online_party_size','last_seating_offset_minutes'];
-const labels=['用餐分鐘','緩衝分鐘','時段間隔分鐘','開放預約天數','最少提前分鐘','加椅總數','每時段新入席組數','最大線上人數','打烊前最晚入席分鐘'];
+const fields:(Exclude<keyof Settings,'booking_cutoff_mode'|'min_advance_minutes'>)[]=['dining_minutes','buffer_minutes','slot_interval_minutes','booking_window_days','extra_chairs_total','max_arrivals_per_slot','max_online_party_size','last_seating_offset_minutes'];
+const labels=['用餐分鐘','緩衝分鐘','時段間隔分鐘','開放預約天數','加椅總數','每時段新入席組數','最大線上人數','打烊前最晚入席分鐘'];
 const taipei=(s:string)=>new Intl.DateTimeFormat('zh-TW',{timeZone:TZ,hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(s));
 const localDate=(s:string)=>dateToday(new Date(s));
 const displayBookingDate=(s:string)=>{const day=localDate(s);const weekday=['日','一','二','三','四','五','六'][new Date(`${day}T12:00:00+08:00`).getUTCDay()];return `${day} (${weekday}）`;};
@@ -263,16 +263,18 @@ export default function Admin(){
   {settingsTab==='rules'&&<>
    <p className="muted small">{t("數值保存在 Supabase，更新網站版本不會還原已儲存設定。變更後請確認既有訂位；修改規則不會自動取消原訂位。")}</p>
    <form onSubmit={e=>{e.preventDefault();void act(async()=>{const response=await request('settings','PATCH',settings);setSettings(response.settings);},t("訂位規則已儲存"));}}>
-    <label>{t("截止訂位")}
-     <select value={settings.booking_cutoff_mode??'minutes'} onChange={e=>setSettings({...settings,booking_cutoff_mode:e.target.value==='opening'?'opening':'minutes'})}>
-      <option value="opening">{t("當天營業開始即停止當天的訂位受理")}</option>
-      <option value="minutes">{t("至少提前指定分鐘訂位")}</option>
-     </select>
-    </label>
-    <div className="two">{fields.map((key,i)=>{
-     if(key==='min_advance_minutes'&&settings.booking_cutoff_mode==='opening')return null;
-     return <label key={key}>{t(labels[i])}<input type="number" required value={settings[key]} onChange={e=>setSettings({...settings,[key]:Number(e.target.value)})}/></label>;
-    })}</div>
+    <div className="booking-cutoff-settings">
+     <label>{t("截止訂位")}
+      <select value={settings.booking_cutoff_mode??'minutes'} onChange={e=>setSettings({...settings,booking_cutoff_mode:e.target.value==='opening'?'opening':'minutes'})}>
+       <option value="opening">{t("當天營業開始即停止當天的訂位受理")}</option>
+       <option value="minutes">{t("至少提前指定分鐘訂位")}</option>
+      </select>
+     </label>
+     {settings.booking_cutoff_mode!=='opening'&&<label>{t("最少提前分鐘")}
+      <input type="number" required value={settings.min_advance_minutes} onChange={e=>setSettings({...settings,min_advance_minutes:Number(e.target.value)})}/>
+     </label>}
+    </div>
+    <div className="two">{fields.map((key,i)=><label key={key}>{t(labels[i])}<input type="number" required value={settings[key]} onChange={e=>setSettings({...settings,[key]:Number(e.target.value)})}/></label>)}</div>
     <button type="submit" className="primary">{t("儲存設定")}</button>
    </form>
   </>}

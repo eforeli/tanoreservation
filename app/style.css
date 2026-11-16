@@ -112,6 +112,8 @@ input[type="date"],input[type="time"]{width:100%;min-width:0;max-width:100%;-web
 .settings-subtabs{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 18px}
 .settings-subtabs button{padding:11px 18px;min-height:44px}
 .settings-subtabs button.active{background:#342a25;color:#fff;border-color:#342a25}
+.booking-cutoff-settings{padding:12px;margin-bottom:16px;border:1px solid var(--border);border-radius:10px}
+.booking-cutoff-settings label:last-child :is(input,select){margin-bottom:0}
 .weekly-hours-list{display:grid;gap:14px}
 .weekly-day{border:1px solid var(--border);border-radius:12px;background:#fff;padding:18px;margin:0}
 .weekly-day-header{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:8px}
