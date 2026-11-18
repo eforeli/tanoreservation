@@ -201,6 +201,8 @@ const spanish:Record<string,string>={
   "全部": "Todos",
   "用戶": "Cliente",
   "管理員": "Administrador",
+  "後台帳號": "Cuenta del personal",
+  "未知後台帳號": "Cuenta del personal desconocida",
   "篩選": "Filtrar",
   "清除": "Limpiar filtros",
   "共 ": "Total: ",

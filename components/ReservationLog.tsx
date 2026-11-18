@@ -7,7 +7,7 @@ type LogRow={
  id:string;confirmation_code:string;booking_created_at:string;guest_name:string;guest_phone:string;
  before_starts_at:string|null;before_party_size:number|null;
  after_starts_at:string|null;after_party_size:number|null;
- action:string;actor:'customer'|'admin';changed_at:string;
+ action:string;actor:'customer'|'admin';actor_name:string|null;changed_at:string;
 };
 type Filters={from:string;to:string;code:string;phone:string;actor:'all'|'customer'|'admin'};
 const empty:Filters={from:'',to:'',code:'',phone:'',actor:'all'};
@@ -50,7 +50,7 @@ export default function ReservationLog({request,language}:{request:(path:string,
    <label>{t("訂位編號")}<input placeholder={t("搜尋編號")} maxLength={32} value={draft.code} onChange={e=>setDraft(v=>({...v,code:e.target.value}))}/></label>
    <label>{t("電話號碼")}<input placeholder={t("搜尋電話")} maxLength={24} inputMode="tel" value={draft.phone} onChange={e=>setDraft(v=>({...v,phone:e.target.value}))}/></label>
    <label>{t("操作者")}<select value={draft.actor} onChange={e=>setDraft(v=>({...v,actor:e.target.value as Filters['actor']}))}>
-    <option value="all">{t("全部")}</option><option value="customer">{t("用戶")}</option><option value="admin">{t("管理員")}</option>
+    <option value="all">{t("全部")}</option><option value="customer">{t("用戶")}</option><option value="admin">{t("後台帳號")}</option>
    </select></label>
    <div className="reservation-log-filter-actions"><button type="submit" className="primary">{t("篩選")}</button><button type="button" onClick={reset}>{t("清除")}</button></div>
   </form>
@@ -67,7 +67,7 @@ export default function ReservationLog({request,language}:{request:(path:string,
       <td data-label={t("修改前")}>{bookingSummary(row.before_starts_at,row.before_party_size,language)}</td>
       <td data-label={t("修改後")}>{row.action==='cancel'?t("取消訂位"):bookingSummary(row.after_starts_at,row.after_party_size,language)}</td>
       <td data-label={t("修改時間")}>{display(row.changed_at)}</td>
-      <td data-label={t("操作者")}>{row.actor==='admin'?t("管理員"):t("用戶")}</td>
+      <td data-label={t("操作者")}>{row.actor==='admin'?(row.actor_name||t("未知後台帳號")):t("用戶")}</td>
      </tr>)}
      {!busy&&rows.length===0&&<tr><td colSpan={7} className="center">{t("沒有符合條件的訂位異動紀錄")}</td></tr>}
     </tbody>

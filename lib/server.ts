@@ -1,4 +1,5 @@
 import 'server-only';
+import type {AdminRole} from './admin-access';
 import { createHash } from 'node:crypto';
 import {createClient} from '@supabase/supabase-js';
 import {NextRequest,NextResponse} from 'next/server';
@@ -9,8 +10,9 @@ export async function adminUser(req:NextRequest){
  const token=req.headers.get('authorization')?.replace(/^Bearer\s+/i,'');if(!token)return null;
  const client=createClient(url(),publicKey(),{auth:{persistSession:false}});
  const {data,error}=await client.auth.getUser(token);if(error||!data.user)return null;
- const {data:admin,error:err}=await db().from('admin_users').select('user_id').eq('user_id',data.user.id).maybeSingle();
- if(err||!admin)return null;return data.user;
+ const {data:admin,error:err}=await db().from('admin_users').select('role').eq('user_id',data.user.id).maybeSingle();
+ if(err||(admin?.role!=='owner'&&admin?.role!=='staff'))return null;
+ return {id:data.user.id,role:admin.role as AdminRole};
 }
 export function privateJson(payload:unknown,status=200){
  return NextResponse.json(payload,{status,headers:{'Cache-Control':'private, no-store'}});

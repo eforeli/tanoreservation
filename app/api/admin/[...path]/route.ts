@@ -2,6 +2,7 @@ import {NextRequest} from 'next/server';
 import {adminUser,db,jsonError,rpc,privateJson} from '@/lib/server';
 import {booking,day,settingsSchema} from '@/lib/schema';
 import {z} from 'zod';
+import {canAccessAdminRoute} from '@/lib/admin-access';
 import {localDay,dateTimeTaipei} from '@/lib/constants';
 export const dynamic='force-dynamic';
 type Context={params:Promise<{path:string[]}>};
@@ -56,7 +57,10 @@ const weeklySchema=z.array(z.object({weekday:z.number().int().min(0).max(6),is_c
 });
 export async function GET(req:NextRequest,{params}:Context){
  const user=await adminUser(req);if(!user)return jsonError('未授權',401);
- const p=(await params).path;const s=db();
+ const p=(await params).path;
+ if(!canAccessAdminRoute(user.role,'GET',p))return jsonError('未授權',403);
+ if(p[0]==='session'&&p.length===1)return privateJson({role:user.role});
+ const s=db();
  if(p[0]==='reservation-log'&&p.length===1){
   const q=req.nextUrl.searchParams;
   const page=Number(q.get('page')||1);
@@ -75,7 +79,16 @@ export async function GET(req:NextRequest,{params}:Context){
   if(actor!=='all')query=query.eq('actor',actor);
   const {data,error,count}=await query.range((page-1)*10,page*10-1);
   if(error){console.error('reservation log',error.code);return jsonError('無法查詢訂位 Log',500);}
-  return privateJson({items:data||[],total:count||0,page,pageSize:10});
+  const rows=data||[];
+  const ids=rows.filter(row=>row.actor==='admin').map(row=>row.id);
+  const actorNames=new Map<string,string>();
+  if(ids.length){
+   const {data:actors,error:actorError}=await s.rpc('reservation_log_actor_names',{p_ids:ids});
+   if(actorError){console.error('reservation log actor names',actorError.code);return jsonError('無法查詢訂位 Log',500);}
+   for(const actor of actors||[])actorNames.set(actor.log_id,actor.actor_name);
+  }
+  const items=rows.map(row=>({...row,actor_name:row.actor==='admin'?actorNames.get(row.id)??null:null}));
+  return privateJson({items,total:count||0,page,pageSize:10});
  }
  if(p[0]==='reservations'){
   const date=req.nextUrl.searchParams.get('date')||'';if(!day.safeParse(date).success)return fail('日期錯誤');
@@ -111,7 +124,9 @@ export async function GET(req:NextRequest,{params}:Context){
 }
 export async function POST(req:NextRequest,{params}:Context){
  const user=await adminUser(req);if(!user)return jsonError('未授權',401);
- const p=(await params).path;const body=await decode(req);if(!body)return fail('格式錯誤');
+ const p=(await params).path;
+ if(!canAccessAdminRoute(user.role,'POST',p))return jsonError('未授權',403);
+ const body=await decode(req);if(!body)return fail('格式錯誤');
  if(p[0]==='reservations'&&p.length===1){const v=booking.safeParse(body);if(!v.success)return fail('訂位資料無效');const b=v.data;if(b.source==='web')return fail('請選擇人工訂位來源');const {data,error}=await rpc('create_booking',{p_date:b.date,p_time:b.time,p_party_size:b.partySize,p_name:b.name,p_phone:b.phone,p_notes:b.notes,p_source:b.source,p_key:b.idempotencyKey,p_actor:user.id});if(error)return adminDbError(error);return privateJson({reservation:data});}
  if(p[0]==='reservations'&&p.length===3&&p[2]==='cancel'&&validUuid(p[1])){const {error}=await rpc('admin_cancel_booking',{p_id:p[1],p_reason:String(body.reason||''),p_actor:user.id});if(error)return adminDbError(error);return privateJson({ok:true});}
  if(p[0]==='blocks'&&p.length===1){const schema=z.object({tableCode:z.enum(['A1','A2','A3','A4','A5']),start:z.iso.datetime({offset:true}),end:z.iso.datetime({offset:true}).nullable(),reason:z.string().max(500)});const v=schema.safeParse(body);if(!v.success)return fail('鎖桌資料錯誤');const {data,error}=await rpc('admin_block_table',{p_table_code:v.data.tableCode,p_start:v.data.start,p_end:v.data.end,p_reason:v.data.reason,p_actor:user.id});if(error)return adminDbError(error);return privateJson({result:data});}
@@ -121,7 +136,9 @@ export async function POST(req:NextRequest,{params}:Context){
 }
 export async function PATCH(req:NextRequest,{params}:Context){
  const user=await adminUser(req);if(!user)return jsonError('未授權',401);
- const p=(await params).path;const body=await decode(req);if(!body)return fail('資料格式錯誤');
+ const p=(await params).path;
+ if(!canAccessAdminRoute(user.role,'PATCH',p))return jsonError('未授權',403);
+ const body=await decode(req);if(!body)return fail('資料格式錯誤');
  if(p[0]==='reservations'&&p.length===2&&validUuid(p[1])){const v=booking.omit({idempotencyKey:true,source:true}).extend({status:z.enum(['confirmed','seated','completed','no_show']),expectedUpdatedAt:z.iso.datetime({offset:true})}).safeParse(body);if(!v.success)return fail('修改內容無效');const b=v.data;const {error}=await rpc('admin_update_booking_versioned',{p_id:p[1],p_date:b.date,p_time:b.time,p_party:b.partySize,p_name:b.name,p_phone:b.phone,p_notes:b.notes,p_status:b.status,p_actor:user.id,p_expected_updated_at:b.expectedUpdatedAt});if(error)return adminDbError(error);return privateJson({ok:true});}
  if(p[0]==='blocks'&&p.length===2&&validUuid(p[1])){const schema=z.object({tableCode:z.enum(['A1','A2','A3','A4','A5']),start:z.iso.datetime({offset:true}),end:z.iso.datetime({offset:true}).nullable(),reason:z.string().max(500)});const v=schema.safeParse(body);if(!v.success)return fail('鎖桌資料錯誤');const {error}=await rpc('admin_edit_block_table',{p_id:p[1],p_table_code:v.data.tableCode,p_start:v.data.start,p_end:v.data.end,p_reason:v.data.reason,p_actor:user.id});if(error)return adminDbError(error);return privateJson({ok:true});}
  if(p[0]==='weekly-hours'){
@@ -152,6 +169,8 @@ export async function PATCH(req:NextRequest,{params}:Context){
 export async function DELETE(req:NextRequest,{params}:Context){
  const user=await adminUser(req);if(!user)return jsonError('未授權',401);
  const p=(await params).path;
+ if(!canAccessAdminRoute(user.role,'DELETE',p))return jsonError('未授權',403);
+
  if(p[0]==='special'&&p.length===2&&day.safeParse(p[1]).success){const s=db();const {data:old,error:readError}=await s.from('special_business_hours').select('*').eq('business_date',p[1]).maybeSingle();if(readError)return adminDbError(readError);if(!old)return jsonError('找不到紀錄',404);const {error}=await s.from('special_business_hours').delete().eq('business_date',p[1]);if(error)return adminDbError(error);await s.from('admin_audit_logs').insert({actor_user_id:user.id,action:'delete',entity_type:'special_business_hours',entity_id:old.id,old_value:old});return privateJson({ok:true});}
  return jsonError('路由不存在',404);
 }

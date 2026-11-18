@@ -1,6 +1,7 @@
 'use client';
 import {useEffect,useState,useCallback} from 'react';
 import {createClient} from '@supabase/supabase-js';
+import type {AdminRole} from '@/lib/admin-access';
 import ReservationLog from '@/components/ReservationLog';
 import {adminText,type AdminLanguage} from '@/lib/admin-i18n';
 import {localDay as dateToday,TZ,dateTimeTaipei} from '@/lib/constants';
@@ -52,7 +53,43 @@ export default function Admin(){
  const [block,setBlock]=useState({tableCode:'A1',date:dateToday(),start:'17:00',end:'19:00',reason:''}),[blockEditId,setBlockEditId]=useState(''),[blockPage,setBlockPage]=useState(false),[blockMode,setBlockMode]=useState<'range'|'ongoing'>('range'),[blockSaving,setBlockSaving]=useState(false);
  const [special,setSpecial]=useState({business_date:dateToday(),is_closed:true,fixed_seating_times:[] as string[],periods:[{start:'17:00',end:'21:00'}],closure_periods:[{start:'18:00',end:'19:00'}],notes:''}),[specialEditDate,setSpecialEditDate]=useState('');
  const request=useCallback(async(path:string,method='GET',body?:unknown)=>{const r=await fetch(`/api/admin/${path}`,{method,headers:{Authorization:`Bearer ${token}`,...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined,cache:'no-store'});const v=await r.json();if(!r.ok)throw Error(adminText(v.error||`HTTP ${r.status}`,language));return v;},[token,language]);
- const refresh=useCallback(async()=>{if(!token)return;setLoading(true);try{const bookingsDate=view==='day'?date:dateToday();const [r,t,b,allBlocks,s,x]=await Promise.all([request(`reservations?date=${bookingsDate}&days=${view==='day'?1:view}`),request(`reservations?date=${tableDate}&days=1`),request(`blocks?date=${tableDate}`),request('blocks?scope=future'),request('settings'),request('special')]);setItems(r.items);setTableItems(t.items);setBlocks(b.items.filter((item:Block)=>!item.end_at||new Date(item.end_at)>new Date()));setFutureBlocks(allBlocks.items);setSettings(s.settings);setWeeklyHours(normalizeWeeklyHours(s.hours||[]));setSpecials(x.items);setError('');}catch(e){setError(String(e));}finally{setLoading(false);}},[token,date,tableDate,view,request,bookingRefreshKey]);
+ const [access,setAccess]=useState<{token:string;role:AdminRole|null;error?:string}|null>(null);
+ const role=access?.token===token?access.role:null;
+ const owner=role==='owner';
+ useEffect(()=>{
+  if(!token){setAccess(null);return;}
+  let active=true;
+  setTab('bookings');setBlockPage(false);setSpecialPage(false);
+  request('session').then(({role})=>{
+   if(!active)return;
+   if(role!=='owner'&&role!=='staff')throw Error(adminText('未授權',language));
+   setAccess({token,role});
+  }).catch(e=>{if(active)setAccess({token,role:null,error:e instanceof Error?e.message:adminText('未授權',language)});});
+  return()=>{active=false;};
+ },[token,request,language]);
+ const refresh=useCallback(async()=>{
+  if(!role)return;
+  setLoading(true);
+  try{
+   const bookingsDate=view==='day'?date:dateToday();
+   const [r,t,b,allBlocks,configuration]=await Promise.all([
+    request(`reservations?date=${bookingsDate}&days=${view==='day'?1:view}`),
+    request(`reservations?date=${tableDate}&days=1`),
+    request(`blocks?date=${tableDate}`),request('blocks?scope=future'),
+    owner?Promise.all([request('settings'),request('special')]):null
+   ]);
+   setItems(r.items);setTableItems(t.items);
+   setBlocks(b.items.filter((item:Block)=>!item.end_at||new Date(item.end_at)>new Date()));
+   setFutureBlocks(allBlocks.items);
+   if(configuration){
+    const [settingsResponse,specialResponse]=configuration;
+    setSettings(settingsResponse.settings);
+    setWeeklyHours(normalizeWeeklyHours(settingsResponse.hours||[]));
+    setSpecials(specialResponse.items);
+   }
+   setError('');
+  }catch(e){setError(String(e));}finally{setLoading(false);}
+ },[role,owner,date,tableDate,view,request,bookingRefreshKey]);
  useEffect(()=>{if(window.sessionStorage.getItem('tano_admin_language')==='zh')setLanguage('zh');},[]);
  useEffect(()=>{client.auth.getSession().then(({data})=>setToken(data.session?.access_token||''));const {data:{subscription}}=client.auth.onAuthStateChange((event,s)=>{setToken(s?.access_token||'');if(event==='SIGNED_OUT'){window.sessionStorage.removeItem('tano_admin_language');setLanguage('es');}});return()=>subscription.unsubscribe();},[client]);
  useEffect(()=>{void refresh();},[refresh]);
@@ -99,6 +136,10 @@ export default function Admin(){
  function updateWeeklyPeriod(weekday:number,index:number,field:keyof WeeklyPeriod,value:string){setWeeklyHours(prev=>prev.map(d=>d.weekday===weekday?{...d,periods:d.periods.map((p,i)=>i===index?{...p,[field]:value}:p)}:d));}
  async function saveWeeklyHours(e:React.FormEvent){e.preventDefault();await act(async()=>{const response=await request('weekly-hours','PATCH',weeklyHours);setWeeklyHours(normalizeWeeklyHours(response.hours));},t("常態營業時間已儲存"));}
  if(!token)return <section className="panel narrow">{toast&&<div role="status" className={`toast ${toast.kind}`}>{toast.text}</div>}<h1>{t("員工專區")}</h1><form onSubmit={login}><label>{t("語言")}<select value={language} onChange={e=>setLanguage(e.target.value as AdminLanguage)}><option value="es">Español (Argentina)</option><option value="zh">{t("繁體中文")}</option></select></label><label>{t("員工編號")}<input type="email" value={email} onChange={e=>setEmail(e.target.value)} required/></label><label>{t("通行憑證")}<input type="password" value={password} onChange={e=>setPassword(e.target.value)} required/></label>{error&&<p className="error">{error}</p>}<button className="primary full">{t("登入")}</button></form></section>;
+ if(!role)return <section className="panel narrow" lang={language==='es'?'es-AR':'zh-Hant'}>
+  <h1>{t("員工專區")}</h1>
+  {access?.token===token&&access.error?<><p className="error" role="alert">{access.error}</p><button type="button" onClick={()=>void client.auth.signOut()}>{t("登出")}</button></>:<p role="status">{t("載入中…")}</p>}
+ </section>;
  if(tab==='new')return <section className="panel narrow admin-editor-screen">
   <button type="button" className="block-back" onClick={()=>{setEditId('');setTab('bookings');}}>{t("← 返回訂位情況")}</button>
   <h1>{editId?t("編輯訂位"):t("新增訂位")}</h1>
@@ -115,7 +156,7 @@ export default function Admin(){
    <div className="block-editor-actions"><button type="button" onClick={()=>{setEditId('');setTab('bookings');}}>{t("返回")}</button><button type="submit" className="primary">{editId?t('儲存修改'):t('建立訂位')}</button></div>
   </form>
  </section>;
- if(specialPage)return <section className="panel narrow admin-editor-screen">
+ if(owner&&specialPage)return <section className="panel narrow admin-editor-screen">
   <button type="button" className="block-back" onClick={closeSpecial}>{t("← 返回特殊日期列表")}</button>
   <h1>{specialEditDate?t("編輯特殊休假與營業"):t("新增特殊休假與營業")}</h1>
   {toast&&<div role="status" className={`toast ${toast.kind}`}>{toast.text}</div>}
@@ -183,7 +224,7 @@ export default function Admin(){
    <h1>{t("員工專用")}</h1>
   </div>
   <nav className="admin-navigation" aria-label={t("後台功能")}>
-   <div className="tabs">{([['bookings',t("訂位情況")],['tables',t("桌況與鎖桌")],['special',t("特殊休假與營業")],['settings',t("營運設定")],['reservation-log',t("訂位log")]] as const).map(([k,v])=>
+   <div className="tabs">{([['bookings',t("訂位情況")],['tables',t("桌況與鎖桌")],['special',t("特殊休假與營業")],['settings',t("營運設定")],['reservation-log',t("訂位log")]] as const).filter(([k])=>owner||(k!=='settings'&&k!=='special')).map(([k,v])=>
     <button type="button" aria-current={tab===k?'page':undefined} className={tab===k?'active':''} key={k} onClick={()=>{if(k==='bookings'&&view==='day'){const today=dateToday();setDate(today);if(date===today)setBookingRefreshKey(n=>n+1);}setTab(k);}}>{v}</button>
    )}</div>
   </nav>
@@ -234,7 +275,7 @@ export default function Admin(){
     </table></div>}
   </section>
  </>}
- {tab==='special'&&<section className="special-list-section">
+ {owner&&tab==='special'&&<section className="special-list-section">
   <div className="toolbar block-list-heading" style={{justifyContent:'space-between',alignItems:'center'}}>
    <h2>{t("即將到來的特殊日期")}</h2>
    <button type="button" className="primary" onClick={openNewSpecial}>{t("＋ 新增休假/營業")}</button>
@@ -254,7 +295,7 @@ export default function Admin(){
   </table></div>
  </section>}
  {tab==='reservation-log'&&<ReservationLog request={request} language={language}/>}
- {tab==='settings'&&settings&&<>
+ {owner&&tab==='settings'&&settings&&<>
   <h2>{t("營運設定")}</h2>
   <div className="settings-subtabs" role="group" aria-label={t("營運設定分類")}>
    <button type="button" className={settingsTab==='rules'?'active':''} aria-pressed={settingsTab==='rules'} onClick={()=>setSettingsTab('rules')}>{t("訂位規則")}</button>
