@@ -10,9 +10,14 @@ export async function adminUser(req:NextRequest){
  const token=req.headers.get('authorization')?.replace(/^Bearer\s+/i,'');if(!token)return null;
  const client=createClient(url(),publicKey(),{auth:{persistSession:false}});
  const {data,error}=await client.auth.getUser(token);if(error||!data.user)return null;
- const {data:admin,error:err}=await db().from('admin_users').select('role').eq('user_id',data.user.id).maybeSingle();
- if(err||(admin?.role!=='owner'&&admin?.role!=='staff'))return null;
- return {id:data.user.id,role:admin.role as AdminRole};
+ const server=db();
+ const [{data:owner,error:ownerError},{data:staff,error:staffError}]=await Promise.all([
+  server.from('admin_users').select('user_id').eq('user_id',data.user.id).maybeSingle(),
+  server.from('admin_staff_users').select('user_id').eq('user_id',data.user.id).maybeSingle()
+ ]);
+ if(ownerError||staffError||(!owner&&!staff))return null;
+ const role:AdminRole=owner?'owner':'staff';
+ return {id:data.user.id,role};
 }
 export function privateJson(payload:unknown,status=200){
  return NextResponse.json(payload,{status,headers:{'Cache-Control':'private, no-store'}});
