@@ -213,6 +213,10 @@ input[type="date"],input[type="time"]{width:100%;min-width:0;max-width:100%;-web
 /* Customer self-service booking pages */
 .booking-entry{text-align:center;padding-top:55px;padding-bottom:55px}
 .booking-entry .muted{margin-bottom:24px}
+.booking-entry-details{min-width:0}
+.booking-entry-details>.small{margin:20px 0 0}
+.booking-age-notice{max-width:440px;margin:24px auto 0;padding-top:18px;border-top:1px solid var(--border);color:#70665e;font-size:14px;line-height:1.85;text-align:left;text-wrap:pretty}
+.booking-age-notice strong{color:var(--ink);font-weight:650;white-space:nowrap}
 .booking-link-primary{display:block;text-align:center;background:var(--accent);border:1px solid var(--accent);color:#fff;padding:14px 18px;border-radius:10px;font-weight:700;margin:20px 0}
 .booking-link-primary:hover{background:#6e3a23;color:#fff}
 .booking-text-link{text-decoration:underline;text-underline-offset:4px;color:var(--accent);font-weight:600}
